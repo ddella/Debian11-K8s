@@ -74,7 +74,7 @@ I'm using VMware Fusion standard edition to create the Debian 11 VMs.
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
 # Start the installation of Debian Linux
-- Choose standard text installation
+Choose standard text installation
 
 ![Choose Firmware Type](images/Picture6.png)
 
@@ -86,35 +86,35 @@ For the next few questions, choose you're
 - Non-administrative username/password
 - Timezone
 
-- Choose Guided - use entire disk
+Choose Guided - use entire disk
 ![Choose Guided entire disk](images/Picture7.png)
 
-- Don't forget to write the change to the disk 😀
+Don't forget to write the change to the disk 😀
 ![write changes to disk](images/Picture8.png)
 
-- Make sure you unselect any graphical interface and you activate SSH server
+Make sure you unselect any graphical user interface and you install SSH server
 ![write changes to disk](images/Picture9.png)
 
-# Finalize Debian installation
+## Finalize Debian installation
 Use the VMware console to login with your root user account.
 
-## Get the IP address of the VM
+### Get the IP address of the VM
 Find your network interface name and ip address with the command:
 
     ip addr
 
-## SSH
+### SSH
 Use SSH to access the VM. You should have the IP address for the step above. Use the non-administrative user since `root` is not allowed to SSH.
     ssh -l daniel 192.168.13.xxx
 
-## Add sudo
+### Add sudo
 Elevate yourself to `root`, install `sudo` and give your normal user `sudo` privileges.
 
     su - root
     apt install -y sudo
     echo "daniel ALL=(ALL:ALL) NOPASSWD: ALL" | sudo tee /etc/sudoers.d/daniel
 
-## Configuring static IP address
+### Configuring static IP address
 Edit the `interfaces` file to configure a static IP address
 
     sudo nano /etc/network/interfaces
@@ -138,31 +138,31 @@ Log off completely and login again with your normal username
     192.168.13.32   k8sworker2.example.com
     EOF
 
-## Installing Linux kernel 6.x on Debian 11 (Optional)
+### Installing Linux kernel 6.x on Debian 11 (Optional)
 I wanted to have a Linux kernel 6.x in my lab.
 
     echo "deb http://deb.debian.org/debian bullseye-backports main" | sudo tee -a /etc/apt/sources.list
     sudo apt update
 
-## Install the new kernel with the following command:
+### Install the new kernel with the following command:
     sudo apt -t bullseye-backports upgrade
 
-## Once the Kernel has been installed, reboot the server with the command:
+### Once the Kernel has been installed, reboot the server with the command:
     sudo reboot
 
-## List old kernels
+### List old kernels
     dpkg --list | grep linux-image
 
-## Remove old kernels with the command:
+### Remove old kernels with the command:
     sudo apt-get --purge remove linux-image-5.10.0-20-amd64 linux-image-5.10.0-21-amd64
 
-## After removing the old kernel, it's time to update the grub2 configuration:
+### After removing the old kernel, it's time to update the grub2 configuration:
     sudo update-grub2
 
-## Generate ECC SSH public/private key pair
+### Generate ECC SSH public/private key pair
     ssh-keygen -q -t ecdsa -N '' -f ~/.ssh/id_ecdsa <<<y >/dev/null 2>&1
 
-## K8s requires swap be disabled
+### K8s requires swap be disabled
 K8s requires that swap partition is disabled on master and worker node of a cluster.
 
 Disable swap with this command:
@@ -173,15 +173,15 @@ Edit /etc/fstab and comment the swap line to disable it on future reboots.
 
     # UUID=9a4ad891-9f88-85564-89ae-5d730202abc8 none            swap    sw              0       0
 
-## Fix backspace/arrows issue with VI in edit mode
-If you like to use `vi`, this fixes a small issue with backspace not working and up/down/left/right arrows having a strange behavior:
+### Fix backspace/arrows issue with VI in edit mode (Optional)
+I had issues with with `vi`. The backspace was not working and up/down/left/right arrows had strange behavior. To fix the issue, create a file `.vimrc` with the lines below:
 
     cat > ~/.vimrc << "EOF"
     :set nocompatible
     :set backspace=indent,eol,start
     EOF
 
-You should have a standard Debian 11 installation with no graphical user interface, a non-administrative user account with `sudo`.
+You should have a standard Debian 11 installation with no graphical user interface, a non-administrative user account with `sudo` and SSH server.
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 

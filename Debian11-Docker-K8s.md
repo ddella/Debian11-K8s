@@ -13,7 +13,7 @@
 |**cri-dockerd**|0.3.1|
 
 # Introduction
-The step-by-step guide demonstrates you how to install Kubernetes cluster on Debian 11 with Kubeadm utility. All the Debian host are running as VMs in VMware Fusion on macOS.
+The step-by-step guide demonstrates you how to install Kubernetes cluster on Debian 11 with Kubeadm utility for a Learning environment. All the Debian hosts are running as VMs with VMware Fusion.
 
 This Kubernetes (K8s) cluster have one master and two worker nodes. Master node works as the control plane and the worker nodes runs the actual container(s).
 
@@ -23,15 +23,18 @@ In this tutorial, you will set up a Kubernetes Cluster by:
 
 - Setting up three Debian 11 virtual machines with a Kernel 6.1.0
 - Installing Docker-CE and Docker Compose plugin
+- Installing CRI-Docker plugin
 - Installing Kubernetes kubelet, kubeadm, and kubectl
 - Installing a CNI Plugin (Cilium)
 - Configuring Docker as the container runtime for Kubernetes
 - Initializing one K8s master node and adding two worker nodes
 
+At the end you will have a complete K8s cluster ready to run your microservices.
+
 # Prerequisites
 To complete this tutorial, you will need the following:
 
-- Three or more physical/virtual Debian 11 servers
+- Three or more physical/virtual Debian 11 servers (if you have 3 Debian 11 already installed, skip to <a href="#docker-ce">Docker-CE</a>))
 - Minimum of 2 CPU / vCPU with 8 GB RAM for the master node
 - 20 GB free disk space
 - Internet Connectivity
@@ -183,6 +186,7 @@ I had issues with with `vi`. The backspace was not working and up/down/left/righ
 
 You should have a standard Debian 11 installation with no graphical user interface, a non-administrative user account with `sudo` and SSH server.
 
+<a name="docker-ce"></a>
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
 # Install Docker-CE on Debian 11
@@ -243,22 +247,34 @@ The steps above installed the following Docker components:
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
 # Install cri-dockerd on Debian 11
-First, let's get the latest release version of `cri-docker`:
+Dockershim has been removed from the Kubernetes project as of release 1.24. You need to install a container runtime into each node in the cluster so that Pods can run there. This section outlines what is involved and describes related tasks for setting up nodes. Kubernetes 1.26 requires that you use a runtime that conforms with the Container Runtime Interface (CRI).
+
+Common container runtimes with Kubernetes:
+- containerd
+- CRI-O
+- Docker Engine
+- Mirantis Container Runtime
+
+>**Note**: Kubernetes releases before v1.24 included a direct integration with Docker Engine, using a component named `dockershim`. That special direct integration is no longer part of Kubernetes.
+
+These instructions show how to install `cri-dockerd` adapter to integrate Docker Engine with Kubernetes.
+
+1. Let's get the latest release version of `cri-docker`:
 
     VER=$(curl -s https://api.github.com/repos/Mirantis/cri-dockerd/releases/latest|grep tag_name | cut -d '"' -f 4|sed 's/v//g')
 
     echo $VER
 
-Download and extract the archive file from Github `cri-docker` releases page:
+2. Download and extract the archive file from Github `cri-docker` releases page:
 
     wget https://github.com/Mirantis/cri-dockerd/releases/download/v${VER}/cri-dockerd-${VER}.amd64.tgz
     tar xvf cri-dockerd-${VER}.amd64.tgz
 
-Move `cri-dockerd` binary package to `/usr/local/bin` directory with the command:
+3. Move `cri-dockerd` binary package to `/usr/local/bin` directory with the command:
 
     sudo mv cri-dockerd/cri-dockerd /usr/local/bin/
 
-Validate successful installation by running the commands below:
+4. Validate successful installation by running the commands below:
 
     cri-dockerd --version
 
@@ -279,6 +295,8 @@ Check the status of the services with the commands:
 
     sudo systemctl status cri-docker.service
     sudo systemctl status cri-docker.socket
+
+>For `cri-dockerd`, the CRI socket is `/run/cri-dockerd.sock` by default.
 
 Clean up the package downloaded:
 

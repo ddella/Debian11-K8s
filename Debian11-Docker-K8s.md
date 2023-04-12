@@ -34,22 +34,26 @@ At the end you will have a complete K8s cluster ready to run your microservices.
 # Prerequisites
 To complete this tutorial, you will need the following:
 
-- Three or more physical/virtual Debian 11 servers (if you have 3 Debian 11 already installed, skip to <a href="#docker-ce">Docker-CE</a>))
-- Minimum of 2 CPU / vCPU with 8 GB RAM for the master node
+- Three or more physical/virtual Debian 11 servers
+    - if you already have 3 Debian 11 installed, skip to <a href="#docker-ce">Docker-CE</a>
+- Minimum of 2 CPU / vCPU with 8 GB RAM for the master node (Nothing as such is required for the slave node)
 - 20 GB free disk space
 - Internet Connectivity
 
 # Lab Setup
-For this tutorial, I will be using three Debian 11 systems with following hostnames and IP addresses:
+For this tutorial, I will be using three Debian 11 systems with following hostnames, IP addresses, OS, Kernel:
 
-- Master Node 1 (k8smaster1) - 192.168.13.30
-- Worker Node 1 (k8sworker1) - 192.168.13.31
-- Worker Node 2 (k8sworker2) - 192.168.13.32
+## Configurations
+|Role|FQDN|IP|OS|Kernel|RAM|CPU|
+|----|----|----|----|----|----|----|
+|Master|k8smaster1.example.com|192.168.13.30|Debian 11.06|6.1.0-0|4G|4|
+|Worker|k8sworker1.example.com|192.168.13.31|Debian 11.06|6.1.0-0|4G|4|
+|Worker|k8sworker2.example.com|192.168.13.32|Debian 11.06|6.1.0-0|4G|4|
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
 # Download the IOS file
-Download the [debian-11.6.0-amd64-netinst.iso](https://cdimage.debian.org/debian-cd/current/amd64/iso-cd/debian-11.6.0-amd64-netinst.iso) from a Debian mirror site. Use the net install ISO.
+Download the [debian-11.6.0-amd64-netinst.iso](https://cdimage.debian.org/debian-cd/current/amd64/iso-cd/debian-11.6.0-amd64-netinst.iso) from a Debian mirror site. I usedcluster-info the net install ISO.
 
 # Create the virtual Machine (VMware Fusion)
 I'm using VMware Fusion standard edition to create the Debian 11 VMs.
@@ -99,30 +103,31 @@ Make sure you unselect any graphical user interface and you install SSH server
 ![write changes to disk](images/Picture9.png)
 
 ## Finalize Debian installation
-Use the VMware console to login with your root user account.
+Use the VMware console to login with the `root` user account.
 
 ### Get the IP address of the VM
 Find your network interface name and ip address with the command:
 
     ip addr
 
-### SSH
-Use SSH to access the VM. You should have the IP address for the step above. Use the non-administrative user since `root` is not allowed to SSH.
+### Use SSH to access the VM
+Use SSH to access the VM, you'll have access to copy/paste. You should have the IP address from the step above. Use the non-administrative user since `root` is not allowed to SSH.
     ssh -l daniel 192.168.13.xxx
 
 ### Add sudo
-Elevate yourself to `root`, install `sudo` and give your normal user `sudo` privileges.
+Elevate yourself to `root`, install `sudo` and give your normal user `sudo` privileges. You won't have to enter your password each time you use `sudo`.
 
     su - root
     apt install -y sudo
     echo "daniel ALL=(ALL:ALL) NOPASSWD: ALL" | sudo tee /etc/sudoers.d/daniel
 
 ### Configuring static IP address
-Edit the `interfaces` file to configure a static IP address
+Edit the `interfaces` file to configure a static IP address:
+>I used `nano`since there's some anoying issues with VI ... that we will fixed soon 😉
 
     sudo nano /etc/network/interfaces
 
-Add the following:
+Add the following lines (adapt to your network):
 
     allow-hotplug ens33
     iface ens33 inet static
@@ -132,7 +137,7 @@ Add the following:
         dns-nameservers 9.9.9.9
         dns-search example.com
 
-Log off completely and login again with your normal username
+Log off completely and login again with your normal username.
 
 ## Add entries in /etc/hosts
     cat >> /etc/hosts << "EOF"
@@ -147,42 +152,39 @@ I wanted to have a Linux kernel 6.x in my lab.
     echo "deb http://deb.debian.org/debian bullseye-backports main" | sudo tee -a /etc/apt/sources.list
     sudo apt update
 
-### Install the new kernel with the following command:
+Install the new kernel with the following command:
     sudo apt -t bullseye-backports upgrade
 
-### Once the Kernel has been installed, reboot the server with the command:
+Once the Kernel has been installed, reboot the server with the command:
     sudo reboot
 
-### List old kernels
+List old kernels, they will be deleted to free disk space.
     dpkg --list | grep linux-image
 
-### Remove old kernels with the command:
+Remove old kernels with the command:
     sudo apt-get --purge remove linux-image-5.10.0-20-amd64 linux-image-5.10.0-21-amd64
 
-### After removing the old kernel, it's time to update the grub2 configuration:
+After removing the old kernel, it's time to update the grub2 configuration:
     sudo update-grub2
 
-### Generate ECC SSH public/private key pair
+Generate ECC SSH public/private key pair
     ssh-keygen -q -t ecdsa -N '' -f ~/.ssh/id_ecdsa <<<y >/dev/null 2>&1
 
-### K8s requires swap be disabled
 K8s requires that swap partition is disabled on master and worker node of a cluster.
 
 Disable swap with this command:
 
-    sudo swapoff -a
-
-Edit /etc/fstab and comment the swap line to disable it on future reboots.
-
-    # UUID=9a4ad891-9f88-85564-89ae-5d730202abc8 none            swap    sw              0       0
+    sudo swapoff -a; sudo sed -i '/swap/d' /etc/fstab
 
 ### Fix backspace/arrows issue with VI in edit mode (Optional)
-I had issues with with `vi`. The backspace was not working and up/down/left/right arrows had strange behavior. To fix the issue, create a file `.vimrc` with the lines below:
+As stated earlier, I had issues with with `vi`. The backspace was not working and up/down/left/right arrows had strange behavior. To fix the issue, create a file `.vimrc` with the lines below:
 
     cat > ~/.vimrc << "EOF"
     :set nocompatible
     :set backspace=indent,eol,start
     EOF
+
+>**Note:** Do it for `root` so when use do `sudo vi <filename>` it will also be applied.
 
 You should have a standard Debian 11 installation with no graphical user interface, a non-administrative user account with `sudo` and SSH server.
 
@@ -190,21 +192,21 @@ You should have a standard Debian 11 installation with no graphical user interfa
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
 # Install Docker-CE on Debian 11
-This is applicable to master and worker node in a K8s cluster.
+For this tutorial, I'm using Docker container runtime. I will publish soon a tutorial on how to migrate an existing K8s cluster from Docker engine to containerd. This is applicable to master and worker node in a K8s cluster.
 
-Install Prerequisites
+Install Prerequisites:
 
     sudo apt install -y apt-transport-https ca-certificates curl gnupg lsb-release
 
-Add Docker's Official GPG Key
+Add Docker's Official GPG Key:
 
     curl -fsSL https://download.docker.com/linux/debian/gpg | sudo gpg --dearmor -o /usr/share/keyrings/docker.gpg
 
-Add Docker Repo to Debian 11
+Add Docker Repo to Debian 11:
 
     echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker.gpg] https://download.docker.com/linux/debian $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
 
-Refresh the package list with the command:
+Refresh the package list:
 
     sudo apt update
 
@@ -216,7 +218,7 @@ Check the Docker service status using the following command:
 
     sudo systemctl is-active docker
 
-Enabling your non-root user to run Docker Commands (Log out from the current terminal and log back in)
+Enabling your non-root user to run Docker commands without using `sudo` (Log out from the current terminal and log back in)
 
     sudo usermod -aG docker ${USER}
 
@@ -257,7 +259,7 @@ Common container runtimes with Kubernetes:
 
 >**Note**: Kubernetes releases before v1.24 included a direct integration with Docker Engine, using a component named `dockershim`. That special direct integration is no longer part of Kubernetes.
 
-These instructions show how to install `cri-dockerd` adapter to integrate Docker Engine with Kubernetes.
+These instructions show how to install `cri-dockerd` adapter to integrate Docker runtime engine with Kubernetes.
 
 1. Let's get the latest release version of `cri-docker`:
 
@@ -274,18 +276,21 @@ These instructions show how to install `cri-dockerd` adapter to integrate Docker
 
     sudo mv cri-dockerd/cri-dockerd /usr/local/bin/
 
-4. Validate successful installation by running the commands below:
+4. Validate successful installation by running the command below:
 
     cri-dockerd --version
 
-Configure systemd units for cri-dockerd:
+5. Change owner:
+    sudo chown root:root /usr/local/bin/cri-dockerd
+
+6. Configure systemd units for cri-dockerd:
 
     wget https://raw.githubusercontent.com/Mirantis/cri-dockerd/master/packaging/systemd/cri-docker.service
     wget https://raw.githubusercontent.com/Mirantis/cri-dockerd/master/packaging/systemd/cri-docker.socket
     sudo mv cri-docker.socket cri-docker.service /etc/systemd/system/
     sudo sed -i -e 's,/usr/bin/cri-dockerd,/usr/local/bin/cri-dockerd,' /etc/systemd/system/cri-docker.service
 
-Start and enable the services with the following commands:
+7. Start and enable the services with the following commands:
 
     sudo systemctl daemon-reload
     sudo systemctl enable cri-docker.service
@@ -298,7 +303,7 @@ Check the status of the services with the commands:
 
 >For `cri-dockerd`, the CRI socket is `/run/cri-dockerd.sock` by default.
 
-Clean up the package downloaded:
+8. Clean up the package downloaded:
 
     rm -rf cri-dockerd cri-dockerd-${VER}.amd64.tgz
 
@@ -350,11 +355,11 @@ After reloading your shell, kubectl autocompletion should be working.
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
 # Configure a K8s master node
-This should only be done on the master node of a K8s cluster. Initialize the master node with the command:
+This should only be done on the **master node** of a K8s cluster and **ONE** time only. Initialize the master node with the command:
 
     sudo kubeadm init --cri-socket unix:///var/run/cri-dockerd.sock
 
-This should be the result of the `init` command:
+This should be the result of the `kubeadm init` command:
 
     Your Kubernetes control-plane has initialized successfully!
 
@@ -377,6 +382,8 @@ This should be the result of the `init` command:
     kubeadm join 192.168.13.30:6443 --token yb1fqq.as5uf76jzsi8ulhf \
         --discovery-token-ca-cert-hash sha256:5b11f6adfcdceb74d3ca2f40a9f3e5086d7898759e5b1ce66a2d7d79b4bef576
 
+>Keep note of the hash but be aware that it's valid for 24 hours.
+
 Check the status of the master with the command:
 
     kubectl get nodes
@@ -390,9 +397,9 @@ The status is NotReady because we didn't install a pod network.
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
 ## Configure the k8s worker node
-This should only be done on worker node of a K8s cluster.
+This should only be done on **all** worker node(s) of a K8s cluster.
 
-Join the worker node to the master node with the command:
+Join each of the worker node to the master node with the command:
 
     sudo kubeadm join 192.168.13.30:6443 --token yb1fqq.as5uf76jzsi8ulhf \
     --cri-socket unix:///var/run/cri-dockerd.sock \
@@ -414,6 +421,8 @@ Check that the worker nodes have joined the cluster and they're ready:
 
     kubectl get nodes
 
+You should see something similar:
+
     NAME         STATUS   ROLES           AGE   VERSION
     k8smaster1   Ready    control-plane   28m   v1.26.3
     k8sworker1   Ready    <none>          85s   v1.26.3
@@ -421,6 +430,17 @@ Check that the worker nodes have joined the cluster and they're ready:
 
 <a name="k8s-cilium"></a>
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
+
+## Verification
+Verify the status of the K8s cluster. You can see that we're using Docker as the container runtime engine.
+
+    kubectl get nodes -o wide
+
+    NAME         STATUS   ROLES           AGE     VERSION   INTERNAL-IP     EXTERNAL-IP   OS-IMAGE                         KERNEL-VERSION          CONTAINER-RUNTIME
+    k8smaster1   Ready    control-plane   3d16h   v1.26.3   192.168.13.30   <none>        Debian GNU/Linux 11 (bullseye)   6.1.0-0.deb11.5-amd64   docker://23.0.3
+    k8sworker1   Ready    <none>          3d16h   v1.26.3   192.168.13.31   <none>        Debian GNU/Linux 11 (bullseye)   6.1.0-0.deb11.5-amd64   docker://23.0.3
+    k8sworker2   Ready    <none>          3d16h   v1.26.3   192.168.13.32   <none>        Debian GNU/Linux 11 (bullseye)   6.1.0-0.deb11.5-amd64   docker://23.0.3
+
 
 ## Install Cilium
 We're going to use Cilium as our CNI networking solution. Cilium is an incubating CNCF project that implements a wide range of networking, security and observability features, much of it through the Linux kernel eBPF facility. This makes Cilium fast and resource efficient. Cilium offers a command line tool that we can use to install the CNI components.

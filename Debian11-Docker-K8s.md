@@ -176,6 +176,10 @@ Generate ECC SSH public/private key pair
 
     ssh-keygen -q -t ecdsa -N '' -f ~/.ssh/id_ecdsa <<<y >/dev/null 2>&1
 
+Copy SSH public key from VMware host to master and worker nodes:
+
+    ssh-copy-id -i ~/.ssh/id_ecdsa.pub 192.168.13.3[0-2]
+
 K8s requires that swap partition is disabled on master and worker node of a cluster.
 
 Disable swap with this command:
@@ -268,50 +272,66 @@ Common container runtimes with Kubernetes:
 These instructions show how to install `cri-dockerd` adapter to integrate Docker runtime engine with Kubernetes.
 
 1. Let's get the latest release version of `cri-docker`:
+```sh
+VER=$(curl -s https://api.github.com/repos/Mirantis/cri-dockerd/releases/latest|grep tag_name | cut -d '"' -f 4|sed 's/v//g')
 
-    VER=$(curl -s https://api.github.com/repos/Mirantis/cri-dockerd/releases/latest|grep tag_name | cut -d '"' -f 4|sed 's/v//g')
-
-    echo $VER
+echo $VER
+```
 
 2. Download and extract the archive file from Github `cri-docker` releases page:
 
-    wget https://github.com/Mirantis/cri-dockerd/releases/download/v${VER}/cri-dockerd-${VER}.amd64.tgz
-    tar xvf cri-dockerd-${VER}.amd64.tgz
+```sh
+wget https://github.com/Mirantis/cri-dockerd/releases/download/v${VER}/cri-dockerd-${VER}.amd64.tgz
+tar xvf cri-dockerd-${VER}.amd64.tgz
+```
 
 3. Move `cri-dockerd` binary package to `/usr/local/bin` directory with the command:
 
-    sudo mv cri-dockerd/cri-dockerd /usr/local/bin/
+```sh
+sudo mv cri-dockerd/cri-dockerd /usr/local/bin/
+```
 
 4. Validate successful installation by running the command below:
 
-    cri-dockerd --version
+```sh
+cri-dockerd --version
+```
 
 5. Change owner:
-    sudo chown root:root /usr/local/bin/cri-dockerd
+```sh
+sudo chown root:root /usr/local/bin/cri-dockerd
+```
 
 6. Configure systemd units for cri-dockerd:
-
-    wget https://raw.githubusercontent.com/Mirantis/cri-dockerd/master/packaging/systemd/cri-docker.service
-    wget https://raw.githubusercontent.com/Mirantis/cri-dockerd/master/packaging/systemd/cri-docker.socket
-    sudo mv cri-docker.socket cri-docker.service /etc/systemd/system/
-    sudo sed -i -e 's,/usr/bin/cri-dockerd,/usr/local/bin/cri-dockerd,' /etc/systemd/system/cri-docker.service
+```sh
+wget https://raw.githubusercontent.com/Mirantis/cri-dockerd/master/packaging/systemd/cri-docker.service
+wget https://raw.githubusercontent.com/Mirantis/cri-dockerd/master/packaging/systemd/cri-docker.socket
+sudo mv cri-docker.socket cri-docker.service /etc/systemd/system/
+sudo sed -i -e 's,/usr/bin/cri-dockerd,/usr/local/bin/cri-dockerd,' /etc/systemd/system/cri-docker.service
+```
 
 7. Start and enable the services with the following commands:
 
-    sudo systemctl daemon-reload
-    sudo systemctl enable cri-docker.service
-    sudo systemctl enable --now cri-docker.socket
+```sh
+sudo systemctl daemon-reload
+sudo systemctl enable cri-docker.service
+sudo systemctl enable --now cri-docker.socket
+```
 
 Check the status of the services with the commands:
 
-    sudo systemctl status cri-docker.service
-    sudo systemctl status cri-docker.socket
+```sh
+sudo systemctl status cri-docker.service
+sudo systemctl status cri-docker.socket
+```
 
 >For `cri-dockerd`, the CRI socket is `/run/cri-dockerd.sock` by default.
 
 8. Clean up the package downloaded:
 
-    rm -rf cri-dockerd cri-dockerd-${VER}.amd64.tgz
+```sh
+rm -rf cri-dockerd cri-dockerd-${VER}.amd64.tgz
+```
 
 <a name="k8s"></a>
 <p align="right">(<a href="#readme-top">back to top</a>)</p>

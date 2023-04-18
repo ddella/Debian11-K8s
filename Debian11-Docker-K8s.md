@@ -153,21 +153,27 @@ I wanted to have a Linux kernel 6.x in my lab.
     sudo apt update
 
 Install the new kernel with the following command:
+
     sudo apt -t bullseye-backports upgrade
 
 Once the Kernel has been installed, reboot the server with the command:
+
     sudo reboot
 
 List old kernels, they will be deleted to free disk space.
+
     dpkg --list | grep linux-image
 
 Remove old kernels with the command:
+
     sudo apt-get --purge remove linux-image-5.10.0-20-amd64 linux-image-5.10.0-21-amd64
 
 After removing the old kernel, it's time to update the grub2 configuration:
+
     sudo update-grub2
 
 Generate ECC SSH public/private key pair
+
     ssh-keygen -q -t ecdsa -N '' -f ~/.ssh/id_ecdsa <<<y >/dev/null 2>&1
 
 K8s requires that swap partition is disabled on master and worker node of a cluster.

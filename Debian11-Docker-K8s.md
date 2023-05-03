@@ -5,10 +5,10 @@
 |Name|Version|
 |:---|:---|
 |**VMware Fusion**|13.0.1|
-|**Debian Bullseye**|11.6.0|
-|**Kernel**|6.1.0-0|
-|**Docker-CE**|23.0.3|
-|**K8s**|1.26.3|
+|**Debian Bullseye**|11.7.0|
+|**Kernel**|6.1.15-1|
+|**Docker-CE**|23.0.5|
+|**K8s**|1.27.1|
 |**Cilium**|1.13.1|
 |**cri-dockerd**|0.3.1|
 
@@ -21,7 +21,7 @@ This Kubernetes (K8s) cluster have one master and two worker nodes. Master node 
 
 In this tutorial, you will set up a Kubernetes Cluster by:
 
-- Setting up three Debian 11 virtual machines with a Kernel 6.1.0
+- Setting up three Debian 11 virtual machines with a Kernel 6.1.x
 - Installing Docker-CE and Docker Compose plugin
 - Installing CRI-Docker plugin
 - Installing Kubernetes kubelet, kubeadm, and kubectl
@@ -46,17 +46,21 @@ For this tutorial, I will be using three Debian 11 systems with following hostna
 ## Configurations
 |Role|FQDN|IP|OS|Kernel|RAM|CPU|
 |----|----|----|----|----|----|----|
-|Master|k8smaster1.example.com|192.168.13.30|Debian 11.06|6.1.0-0|4G|4|
-|Worker|k8sworker1.example.com|192.168.13.31|Debian 11.06|6.1.0-0|4G|4|
-|Worker|k8sworker2.example.com|192.168.13.32|Debian 11.06|6.1.0-0|4G|4|
+|Master|k8smaster1.example.com|192.168.13.30|Debian 11.7|6.1.0-0|4G|4|
+|Worker|k8sworker1.example.com|192.168.13.31|Debian 11.7|6.1.0-0|4G|4|
+|Worker|k8sworker2.example.com|192.168.13.32|Debian 11.7|6.1.0-0|4G|4|
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
-# Download the IOS file
-Download the [debian-11.6.0-amd64-netinst.iso](https://cdimage.debian.org/debian-cd/current/amd64/iso-cd/debian-11.6.0-amd64-netinst.iso) from a Debian mirror site. I usedcluster-info the net install ISO.
+# Download the ISO file
+Download the [debian-11.7.0-amd64-netinst.iso](https://cdimage.debian.org/debian-cd/current/amd64/iso-cd/debian-11.7.0-amd64-netinst.iso) from a Debian mirror site. I used cluster-info the net install ISO.
+
+If the link is broken, that means there's a new version, browse [here](https://www.debian.org/CD/netinst/) and select the `netinst` image.
+
+![Create Virtual Machine](images/debian-iso.jpg)
 
 # Create the virtual Machine (VMware Fusion)
-I'm using VMware Fusion standard edition to create the Debian 11 VMs.
+I'm using VMware Fusion standard edition to create the Debian 11 VMs. It will work with vSphere 7.x
 
 - Create a new virtual machine
 
@@ -112,14 +116,21 @@ Find your network interface name and ip address with the command:
 
 ### Use SSH to access the VM
 Use SSH to access the VM, you'll have access to copy/paste. You should have the IP address from the step above. Use the non-administrative user since `root` is not allowed to SSH.
-    ssh -l daniel 192.168.13.xxx
+    ssh -l <USERNAME> 192.168.13.xxx
 
 ### Add sudo
 Elevate yourself to `root`, install `sudo` and give your normal user `sudo` privileges. You won't have to enter your password each time you use `sudo`.
 
-    su - root
-    apt install -y sudo
-    echo "daniel ALL=(ALL:ALL) NOPASSWD: ALL" | sudo tee /etc/sudoers.d/daniel
+```sh
+su - root
+apt install -y sudo
+```
+
+Add you username to `sudo`. Change `<USERNAME>` to your real username before pasting the command.
+```sh
+echo "<USERNAME> ALL=(ALL:ALL) NOPASSWD: ALL" | sudo tee /etc/sudoers.d/<USERNAME>
+```
+
 
 ### Configuring static IP address
 Edit the `interfaces` file to configure a static IP address:
@@ -153,48 +164,58 @@ I wanted to have a Linux kernel 6.x in my lab.
     sudo apt update
 
 Install the new kernel with the following command:
-
-    sudo apt -t bullseye-backports upgrade
+```sh
+sudo apt -t bullseye-backports upgrade
+```
 
 Once the Kernel has been installed, reboot the server with the command:
-
-    sudo reboot
+```sh
+sudo init 6
+```
 
 List old kernels, they will be deleted to free disk space.
-
-    dpkg --list | grep linux-image
+```sh
+dpkg --list | grep linux-image
+```
 
 Remove old kernels with the command:
-
-    sudo apt-get --purge remove linux-image-5.10.0-20-amd64 linux-image-5.10.0-21-amd64
+```sh
+sudo apt-get --purge remove linux-image-5.10.0-20-amd64 linux-image-5.10.0-21-amd64
+```
 
 After removing the old kernel, it's time to update the grub2 configuration:
-
-    sudo update-grub2
+```sh
+sudo update-grub2
+```
 
 Generate ECC SSH public/private key pair
-
-    ssh-keygen -q -t ecdsa -N '' -f ~/.ssh/id_ecdsa <<<y >/dev/null 2>&1
+```sh
+ssh-keygen -q -t ecdsa -N '' -f ~/.ssh/id_ecdsa <<<y >/dev/null 2>&1
+```
 
 Copy SSH public key from VMware host to master and worker nodes:
-
-    ssh-copy-id -i ~/.ssh/id_ecdsa.pub 192.168.13.3[0-2]
+```sh
+ssh-copy-id -i ~/.ssh/id_ecdsa.pub 192.168.13.3[0-2]
+```
 
 K8s requires that swap partition is disabled on master and worker node of a cluster.
 
 Disable swap with this command:
-
-    sudo swapoff -a; sudo sed -i '/swap/d' /etc/fstab
+```sh
+sudo swapoff -a; sudo sed -i '/swap/d' /etc/fstab
+```
 
 ### Fix backspace/arrows issue with VI in edit mode (Optional)
-As stated earlier, I had issues with with `vi`. The backspace was not working and up/down/left/right arrows had strange behavior. To fix the issue, create a file `.vimrc` with the lines below:
+As stated earlier, I had issues with with `vi`. The backspace was not working and up/down/left/right arrows had strange behavior. To fix the issue the following commands will create a file `.vimrc` with 2 commands:
 
-    cat > ~/.vimrc << "EOF"
-    :set nocompatible
-    :set backspace=indent,eol,start
-    EOF
+```sh
+cat > ~/.vimrc << "EOF"
+:set nocompatible
+:set backspace=indent,eol,start
+EOF
+```
 
->**Note:** Do it for `root` so when use do `sudo vi <filename>` it will also be applied.
+>**Note:** Do it for `root`, so when use do `sudo vi <filename>` it will also be applied.
 
 You should have a standard Debian 11 installation with no graphical user interface, a non-administrative user account with `sudo` and SSH server.
 
@@ -205,47 +226,58 @@ You should have a standard Debian 11 installation with no graphical user interfa
 For this tutorial, I'm using Docker container runtime. I will publish soon a tutorial on how to migrate an existing K8s cluster from Docker engine to containerd. This is applicable to master and worker node in a K8s cluster.
 
 Install Prerequisites:
-
-    sudo apt install -y apt-transport-https ca-certificates curl gnupg lsb-release
+```sh
+sudo apt install -y apt-transport-https ca-certificates curl gnupg lsb-release
+```
 
 Add Docker's Official GPG Key:
-
-    curl -fsSL https://download.docker.com/linux/debian/gpg | sudo gpg --dearmor -o /usr/share/keyrings/docker.gpg
+```sh
+curl -fsSL https://download.docker.com/linux/debian/gpg | sudo gpg --dearmor -o /usr/share/keyrings/docker.gpg
+```
 
 Add Docker Repo to Debian 11:
-
-    echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker.gpg] https://download.docker.com/linux/debian $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+```sh
+echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker.gpg] https://download.docker.com/linux/debian $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+```
 
 Refresh the package list:
-
-    sudo apt update
+```sh
+sudo apt update
+```
 
 To install the latest up-to-date Docker release on Debian, run the below command:
-
-    sudo apt install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+```sh
+sudo apt install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+```
 
 Check the Docker service status using the following command:
-
-    sudo systemctl is-active docker
+```sh
+sudo systemctl is-active docker
+```
 
 Enabling your non-root user to run Docker commands without using `sudo` (Log out from the current terminal and log back in)
+```sh
+sudo usermod -aG docker ${USER}
+```
+>**Note**: Logoff and login
 
-    sudo usermod -aG docker ${USER}
-
-Check Docker's version (without sudo)
-
-    docker version
-    docker compose version
+Check Docker's version (without sudo):
+```sh
+docker version
+docker compose version
+```
 
 Verify that Docker is running:
-
-    sudo systemctl status docker.service
-    sudo systemctl status docker.socket
-    sudo systemctl status containerd.service
+```sh
+sudo systemctl status docker.service
+sudo systemctl status docker.socket
+sudo systemctl status containerd.service
+```
 
 Docker bash completion: If you installed `docker-ce-cli` package, it already ships with bash-completion files:
-
-    dpkg -L docker-ce-cli | grep completion
+```sh
+dpkg -L docker-ce-cli | grep completion
+```
 
 The steps above installed the following Docker components:
 
@@ -328,7 +360,6 @@ sudo systemctl status cri-docker.socket
 >For `cri-dockerd`, the CRI socket is `/run/cri-dockerd.sock` by default.
 
 8. Clean up the package downloaded:
-
 ```sh
 rm -rf cri-dockerd cri-dockerd-${VER}.amd64.tgz
 ```
@@ -337,54 +368,65 @@ rm -rf cri-dockerd cri-dockerd-${VER}.amd64.tgz
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
 # Install K8s (master & worker)
-Finally the fun part 😀
-
-This should be done on the master and worker nodes of a K8s cluster.
+Finally the fun part 😀  
+This needs to be done on both the Master(s) and the Worker(s) nodes of a K8s cluster..
 
 Install packages dependency (should already be installed from the Docker section):
-
-    sudo apt install -y apt-transport-https ca-certificates curl
+```sh
+sudo apt install -y apt-transport-https ca-certificates curl
+```
 
 Download the Google Cloud public (GCP) signing key using curl command:
-
-    sudo curl -fsSLo /usr/share/keyrings/kubernetes-archive-keyring.gpg https://packages.cloud.google.com/apt/doc/apt-key.gpg
+```sh
+sudo curl -fsSLo /usr/share/keyrings/kubernetes-archive-keyring.gpg https://packages.cloud.google.com/apt/doc/apt-key.gpg
+```
 
 Add Kubernetes APT Repository:
-
-    echo "deb [signed-by=/usr/share/keyrings/kubernetes-archive-keyring.gpg] https://apt.kubernetes.io/ kubernetes-xenial main" | sudo tee /etc/apt/sources.list.d/kubernetes.list
+```sh
+echo "deb [signed-by=/usr/share/keyrings/kubernetes-archive-keyring.gpg] https://apt.kubernetes.io/ kubernetes-xenial main" | sudo tee /etc/apt/sources.list.d/kubernetes.list
+```
 
 Update the software package index:
-
-    sudo apt update
+```sh
+sudo apt update
+```
 
 Install Kubernetes with the following commands:
-
-    sudo apt install kubectl kubeadm kubelet kubernetes-cni
+```sh
+sudo apt install kubectl kubeadm kubelet kubernetes-cni
+```
 
 Optional:
+This will make sure that `apt upgrade` win't upgrade K8s.
+```sh
+sudo apt-mark hold kubelet kubeadm kubectl
+```
 
-    sudo apt-mark hold kubelet kubeadm kubectl
-
-Verify K8s version (v1.26.3):
-
-    kubectl version --output=yaml
-    kubeadm version --output=yaml
-    kubectl version --output=yaml
+Verify K8s version (v1.27.1):
+```sh
+kubectl version --output=yaml
+kubeadm version --output=yaml
+kubectl version --output=yaml
+```
 
 Enable kubectl autocompletion for Bash:
-
-    sudo kubectl completion bash | sudo tee /etc/bash_completion.d/kubectl > /dev/null
+```sh
+sudo kubectl completion bash | sudo tee /etc/bash_completion.d/kubectl > /dev/null
+```
 
 After reloading your shell, kubectl autocompletion should be working.
-    source ~/.bashrc
+```sh
+source ~/.bashrc
+```
 
 <a name="k8s-master"></a>
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
 # Configure a K8s master node
 This should only be done on the **master node** of a K8s cluster and **ONE** time only. Initialize the master node with the command:
-
-    sudo kubeadm init --cri-socket unix:///var/run/cri-dockerd.sock
+```sh
+sudo kubeadm init --cri-socket unix:///var/run/cri-dockerd.sock
+```
 
 This should be the result of the `kubeadm init` command:
 
@@ -416,15 +458,15 @@ Check the status of the master with the command:
     kubectl get nodes
 
     NAME         STATUS     ROLES           AGE   VERSION
-    k8smaster1   NotReady   control-plane   4m    v1.26.3
+    k8smaster1   NotReady   control-plane   4m    v1.27.1
 
-The status is NotReady because we didn't install a pod network.
+The status is `NotReady` because we didn't install a pod network.
 
 <a name="k8s-worker"></a>
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
 ## Configure the k8s worker node
-This should only be done on **all** worker node(s) of a K8s cluster.
+This should be done on **all** worker node(s) of a K8s cluster and **ONLY** the worker nodes.
 
 Join each of the worker node to the master node with the command:
 
@@ -445,28 +487,30 @@ Join each of the worker node to the master node with the command:
     * The Kubelet was informed of the new secure connection details.
 
 Check that the worker nodes have joined the cluster and they're ready:
-
-    kubectl get nodes
+```sh
+kubectl get nodes
+```
 
 You should see something similar:
 
     NAME         STATUS   ROLES           AGE   VERSION
-    k8smaster1   Ready    control-plane   28m   v1.26.3
-    k8sworker1   Ready    <none>          85s   v1.26.3
-    k8sworker2   Ready    <none>          66s   v1.26.3
+    k8smaster1   Ready    control-plane   28m   v1.27.1
+    k8sworker1   Ready    <none>          85s   v1.27.1
+    k8sworker2   Ready    <none>          66s   v1.27.1
 
 <a name="k8s-cilium"></a>
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
 ## Verification
 Verify the status of the K8s cluster. You can see that we're using Docker as the container runtime engine.
-
-    kubectl get nodes -o wide
+```sh
+kubectl get nodes -o wide
+```
 
     NAME         STATUS   ROLES           AGE     VERSION   INTERNAL-IP     EXTERNAL-IP   OS-IMAGE                         KERNEL-VERSION          CONTAINER-RUNTIME
-    k8smaster1   Ready    control-plane   3d16h   v1.26.3   192.168.13.30   <none>        Debian GNU/Linux 11 (bullseye)   6.1.0-0.deb11.5-amd64   docker://23.0.3
-    k8sworker1   Ready    <none>          3d16h   v1.26.3   192.168.13.31   <none>        Debian GNU/Linux 11 (bullseye)   6.1.0-0.deb11.5-amd64   docker://23.0.3
-    k8sworker2   Ready    <none>          3d16h   v1.26.3   192.168.13.32   <none>        Debian GNU/Linux 11 (bullseye)   6.1.0-0.deb11.5-amd64   docker://23.0.3
+    k8smaster1   Ready    control-plane   3d16h   v1.27.1   192.168.13.30   <none>        Debian GNU/Linux 11 (bullseye)   6.1.0-0.deb11.5-amd64   docker://23.0.3
+    k8sworker1   Ready    <none>          3d16h   v1.27.1   192.168.13.31   <none>        Debian GNU/Linux 11 (bullseye)   6.1.0-0.deb11.5-amd64   docker://23.0.3
+    k8sworker2   Ready    <none>          3d16h   v1.27.1   192.168.13.32   <none>        Debian GNU/Linux 11 (bullseye)   6.1.0-0.deb11.5-amd64   docker://23.0.3
 
 
 ## Install Cilium
@@ -476,31 +520,39 @@ We're going to use Cilium as our CNI networking solution. Cilium is an incubatin
 3.	Install and test the Cilium CLI:
 
 Download the package:
-
-    wget https://github.com/cilium/cilium-cli/releases/latest/download/cilium-linux-amd64.tar.gz
+```sh
+wget https://github.com/cilium/cilium-cli/releases/latest/download/cilium-linux-amd64.tar.gz
+```
 
 Extract it:
+```sh
+sudo tar xzvfC cilium-linux-amd64.tar.gz /usr/local/bin
+```
 
-    sudo tar xzvfC cilium-linux-amd64.tar.gz /usr/local/bin
+Install cilium CNI:
+```sh
+cilium install
+```
 
-Install the cilium CNI:
+Check cilium status:
+```sh
+cilium status
+```
 
-    cilium install
-
-Check the cilium status:
-
-    cilium status
-
-Check that the master node is ready:
-
-    kubectl get nodes
+Check that the master and worker nodes are ready:
+```sh
+kubectl get nodes
+```
 
     NAME         STATUS   ROLES           AGE   VERSION
-    k8smaster1   Ready    control-plane   22h   v1.26.3
-    k8sworker1   Ready    <none>          22h   v1.26.3
-    k8sworker2   Ready    <none>          22h   v1.26.3
+    k8smaster1   Ready    control-plane   22h   v1.27.1
+    k8sworker1   Ready    <none>          22h   v1.27.1
+    k8sworker2   Ready    <none>          22h   v1.27.1
 
-    kubectl get pod -A
+Check the Pods for all namespace. You will see the Cilium Pods.
+```sh
+kubectl get pod -A
+```
 
     NAMESPACE     NAME                                 READY   STATUS    RESTARTS        AGE
     kube-system   cilium-cjp26                         1/1     Running   0               103s
@@ -517,14 +569,18 @@ Check that the master node is ready:
     kube-system   kube-proxy-vsb96                     1/1     Running   2 (15h ago)     22h
     kube-system   kube-scheduler-k8smaster1            1/1     Running   3 (8m41s ago)   22h
 
-Delete the package with the command:
+Delete the Cilium package with the command:
+```sh
+rm -f cilium-linux-amd64.tar.gz
+```
 
-    rm -f cilium-linux-amd64.tar.gz
+Verify the status of `kubelet` and version:
+```sh
+sudo systemctl status kubelet.service
+kubectl version --output=yaml
+```
 
-Verify Kubectl Configuration:
-
-    sudo systemctl status kubelet.service
-    kubectl version --output=yaml
+You should have a fully functionnal Kubernetes Cluster running on three nodes.
 
 ## License
 Distributed under the MIT License. See [LICENSE](LICENSE) for more information.

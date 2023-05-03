@@ -354,6 +354,7 @@ Add Kubernetes APT Repository:
     echo "deb [signed-by=/usr/share/keyrings/kubernetes-archive-keyring.gpg] https://apt.kubernetes.io/ kubernetes-xenial main" | sudo tee /etc/apt/sources.list.d/kubernetes.list
 
 Update the software package index:
+
     sudo apt update
 
 Install Kubernetes with the following commands:

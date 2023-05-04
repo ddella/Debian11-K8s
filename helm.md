@@ -23,7 +23,7 @@ curl -o helm-v${VER}-linux-amd64.tar.gz https://get.helm.sh/helm-v${VER}-linux-a
 tar xvf helm-v${VER}-linux-amd64.tar.gz
 ```
 
-## 3. Move Helm binary package to /usr/local/bin directory with the command
+## 3. Move Helm binary package to `/usr/local/bin` directory with the command
 ```sh
 sudo mv linux-amd64/helm /usr/local/bin/.
 ```

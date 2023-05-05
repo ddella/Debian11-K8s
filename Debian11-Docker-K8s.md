@@ -217,6 +217,21 @@ EOF
 
 >**Note:** Do it for `root`, so when use do `sudo vi <filename>` it will also be applied.
 
+### Terminal color (Optional)
+If you like a terminal with colors, add those lines to `~/.bashrc`:
+```sh
+NORMAL="\[\e[0m\]"
+RED="\[\e[1;31m\]"
+GREEN="\[\e[1;32m\]"
+if [[ $EUID = 0 ]]; then
+  PS1="$RED\u [ $NORMAL\w$RED ]# $NORMAL"
+else
+  PS1="$GREEN\u [ $NORMAL\w$GREEN ]\$ $NORMAL"
+fi
+ 
+unset RED GREEN NORMAL
+```
+
 You should have a standard Debian 11 installation with no graphical user interface, a non-administrative user account with `sudo` and SSH server.
 
 <a name="docker-ce"></a>
@@ -461,6 +476,20 @@ Check the status of the master with the command:
     k8smaster1   NotReady   control-plane   4m    v1.27.1
 
 The status is `NotReady` because we didn't install a pod network.
+
+### New user
+When you add a new user to administer K8s, don't forget to enter those commands:
+```sh
+mkdir -p $HOME/.kube
+sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
+sudo chown $(id -u):$(id -g) $HOME/.kube/config
+```
+
+You will get this message if you don't enter the preceeding commands:
+
+    kubectl get nodes
+    E0505 09:34:01.117879 1899475 memcache.go:265] couldn't get current server API group list: Get http://localhost:8080/api?timeout=32s: dial tcp [::1]:8080: connect: connection refused
+ 
 
 <a name="k8s-worker"></a>
 <p align="right">(<a href="#readme-top">back to top</a>)</p>

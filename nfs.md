@@ -17,7 +17,7 @@ sudo apt update
 sudo apt -y upgrade
 ```
 
-# Installation and Configuration of NFS Server on Debian 11 (**Server ONLY**)
+# Configuration of NFS Server on Debian 11 (**Server ONLY**)
 Install NFS server:
 ```sh
 sudo apt install nfs-kernel-server
@@ -60,7 +60,7 @@ Verify the NFS version (you can see this information in column two):
 rpcinfo -p | grep nfs
 ```
 
-# Installation and Configuration of NFS Client on Debian 11 (**Client ONLY**)
+# Configuration of NFS Client on Debian 11 (**Client ONLY**)
 Install NFS client:
 ```sh
 sudo apt install nfs-common

@@ -6,9 +6,9 @@ Helm is a tool that streamlines installing and managing Kubernetes applications.
 ## Install Helm
 This demonstartes how to install Heml from binary.
 
-1. Getb the laatest version
+1. Get the latest version
 2. Download Helm client from the Releases page and Unpack the helm binary
-3. Move it to `/usr/local/bin` and you are good to go!
+3. Move it to `/usr/local/bin` and you are good to go 😀
 4. Cleanup
 
 ## 1. Get the latest version of Helm
@@ -32,4 +32,5 @@ sudo mv linux-amd64/helm /usr/local/bin/.
 ```sh
 rm -rf linux-amd64/
 rm -f helm-v${VER}-linux-amd64.tar.gz
+unset VER
 ```

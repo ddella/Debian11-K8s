@@ -95,8 +95,21 @@ Add the following lines (adapt to your network):
         - to: default
             via: 192.168.13.1
 
+### Domain name
+Below is the command to add a domain name using the command line on Ubuntu 22.04 (replace `k8smaster1.example.com` with your hostname).
+```sh
+sudo hostnamectl hostname k8smaster1.example.com
+```
+
+Verify the change the has been apply:
+```sh
+sudo hostnamectl status
+hostname -f
+hostname -d
+```
+
 ### Installing latest Linux kernel 6.3.x on Ubuntu (Optional)
-I wanted to have the latest stable Linux kernel which was 6.3.2 at the time of this writing.
+I wanted to have the latest stable Linux kernel which was 6.3.3 at the time of this writing.
 
 1. Make sure you have you packages are up to date.
 
@@ -104,7 +117,7 @@ I wanted to have the latest stable Linux kernel which was 6.3.2 at the time of t
 sudo apt update && sudo apt upgrade
 ```
 2. Ubuntu Mainline Kernel script (available on [GitHub](https://github.com/pimlie/ubuntu-mainline-kernel.sh))
-Use this Bash script for Ubuntu (and derivatives as LinuxMint) to easily (un)install kernels from the [Ubuntu Kernel PPA](http://kernel.ubuntu.com/~kernel-ppa/mainline/).
+Use this Bash script for Ubuntu (and derivatives such as LinuxMint) to easily (un)install kernels from the [Ubuntu Kernel PPA](http://kernel.ubuntu.com/~kernel-ppa/mainline/).
 
 ```sh
 wget https://raw.githubusercontent.com/pimlie/ubuntu-mainline-kernel.sh/master/ubuntu-mainline-kernel.sh
@@ -143,7 +156,7 @@ You can delete the old kernels to free disk space.
 dpkg --list | grep linux-image
 ```
 
-Remove old kernels listing from the preceding step with the command:
+Remove old kernels listing from the preceding step with the command (adjust the image name):
 
 ```sh
 sudo apt-get --purge remove linux-image-5.15.0-72-generic
@@ -154,10 +167,20 @@ After removing the old kernel, update the grub2 configuration:
 sudo update-grub2
 ```
 
-### Install VI (optional)
-I can't live without `vi` and I found out it's not installed with the minimal version 🥲. If you're like me, use this command to install it:
+### Install Utilities (optional)
+Some usefull utilities that might bu usefull down the road. Take a look and feel free to add or remove:
 ```sh
-sudo apt install vim
+sudo apt -y install iputils-tracepath iputils-ping iputils-arping
+sudo apt -y install dnsutils
+sudo apt -y install tshark
+sudo apt -y install netcat
+sudo apt -y install traceroute
+sudo apt -y install vim
+```
+
+To remove a package configurations, data and all of its dependencies, you can use the following command:
+```sh
+sudo apt-get -y autoremove --purge <package name>
 ```
 
 ### SSH
@@ -176,7 +199,7 @@ ssh-copy-id -i ~/.ssh/id_ecdsa.pub 192.168.13.3x
 >**Note:** If you don't have an ECC public key, change the filename
 
 ### Disable swap space
-K8s requires that swap partition be **disabled** on master and worker node of a cluster.
+K8s requires that swap partition be **disabled** on master and worker node of a cluster. As of this writing, Ubuntu 22.04 with minimal install has swap space disabled by default. If this is the case, skip to the next section.
 
 You can check if swap is enable with the command:
 ```sh
@@ -190,7 +213,7 @@ You can also check by running the `free` command:
 free -h
 ```
 
-If it's enabled, follow those steps to disable it.
+If and **ONLY** if it's enabled, follow those steps to disable it.
 
 Disable swap and comment a line in the file `/etc/fstab` with this command:
 ```sh
@@ -215,18 +238,12 @@ EOF
 ``` 
 
 ### IPv4 routing
-Make sure IPv4 routing is enabled.
-
+Make sure IPv4 routing is enabled. The following command returns `1` if IP routing is enabled, else it will return `0`: 
 ```sh
 sysctl net.ipv4.ip_forward
 ```
 
-The result should return `1` if IP routing is enabled, else it will return `0`:
-```
-net.ipv4.ip_forward = 1
-```
-
-If it's not enabled, you can modify the file `/etc/sysctl.conf` and uncomment the line `#net.ipv4.ip_forward=1` or just add the following file:
+If the the result is not `1`, meaning it's not enabled, you can modify the file `/etc/sysctl.conf` and uncomment the line `#net.ipv4.ip_forward=1` or just add the following file to enable IPv4 routing:
 ```sh
 sudo tee /etc/sysctl.d/kubernetes.conf<<EOF
 net.ipv4.ip_forward = 1
@@ -239,7 +256,7 @@ sudo sysctl --system
 ```
 
 ### Terminal color (Optional)
-If you like a terminal with colors, add those lines to your `~/.bashrc`. Change the variable `ALIASE_NAME` to reflect the hostname you would like to see:
+If you like a terminal with colors, add those lines to your `~/.bashrc`. Lots of Linux distro have a red prompt for `root` and `green` for normal users. I decided to have `CYAN` for normal users to show that I'm in Kubernetes. Adjust to your preference:
 ```sh
 cat >> .bashrc <<'EOF'
 
@@ -247,17 +264,17 @@ NORMAL="\[\e[0m\]"
 RED="\[\e[1;31m\]"
 GREEN="\[\e[1;32m\]"
 CYAN="\[\e[1;35m\]"
-ALIASE_NAME="k8master1"
 if [[ $EUID = 0 ]]; then
-  PS1="$RED\u [ $NORMAL\w$RED ]# $NORMAL"
+  PS1="$RED\u@\h [ $NORMAL\w$RED ]# $NORMAL"
 else
-  PS1="$CYAN\u@$ALIASE_NAME [ $NORMAL\w$CYAN ]\$ $NORMAL"
+  PS1="$CYAN\u@\h [ $NORMAL\w$CYAN ]\$ $NORMAL"
 fi
- 
-unset RED GREEN NORMAL CYAN
+unset NORMAL RED GREEN CYAN
+
+alias k='kubectl'
 EOF
 ```
->If you do not want variables to be replaced, you need to surround EOF with single quotes.
+>**Note:** Make sure to surround `EOF` with single quotes. Failure to do so will replace variables with their value.
 
 Apply the change:
 ```sh
@@ -274,6 +291,14 @@ You should have a standard Ubuntu 22.04 installation 🎉
 - a non-administrative user account with `sudo` privileges
 - SSH server with public/private key
 - Latest Kernel available
+
+### Set bash auto cpmpletion
+I like auto completion:
+```sh
+sudo apt install bash-completion
+grep -wq '^source /etc/profile.d/bash_completion.sh' ~/.bashrc || echo 'source /etc/profile.d/bash_completion.sh'>>~/.bashrc
+source .bashrc
+```
 
 ### Clean up (optional)
 Use this command to uninstall unused packages:
@@ -402,7 +427,7 @@ sudo kubectl completion bash | sudo tee /etc/bash_completion.d/kubectl > /dev/nu
 sudo kubeadm completion bash | sudo tee /etc/bash_completion.d/kubeadm > /dev/null
 ```
 
-After reloading your shell, kubectl autocompletion should be working.
+After reloading your shell, `kubectl` and `kubeadm` autocompletion should be working.
 ```sh
 source ~/.bashrc
 ```
@@ -454,13 +479,51 @@ Edit the configuration file `/etc/containerd/config.toml`. In the section `[plug
 sudo sed -i 's/SystemdCgroup = false/SystemdCgroup = true/' /etc/containerd/config.toml
 ```
 
+If you don't want to specify the endpoint every time you use the command `crictl`, you can create the file `/etc/crictl.yaml` by specifying the endpoint. If you don't do that, you'll have to enter the endpoint each time like this `crictl --runtime-endpoint unix:///run/containerd/containerd.sock ...`
+```sh
+cat <<EOF | sudo tee /etc/crictl.yaml
+runtime-endpoint: unix:///var/run/containerd/containerd.sock
+image-endpoint: unix:///var/run/containerd/containerd.sock
+EOF
+```
+
+Enable `crictl` autocompletion for Bash:
+```sh
+sudo crictl completion | sudo tee /etc/bash_completion.d/crictl > /dev/null
+source ~/.bashrc
+```
+
+By default each time you run the command `crictl` you'll need to prefix it with `sudo`. Let's fix this by:
+- adding a new group `crictl`
+- add your user to that group
+- modify the group owner of `/var/run/containerd/containerd.sock`
+
+Add a group to run the command `crictl` commands without using `sudo`:
+```sh
+sudo addgroup crictl
+```
+
+Enabling your non-root user to be part of the group `crictl`(Log out from the current terminal and log back in):
+```sh
+sudo usermod -aG crictl ${USER}
+```
+
+Change the group of `/var/run/containerd/containerd.sock` to crictl:
+```sh
+sudo chgrp crictl /var/run/containerd/containerd.sock
+```
+
 Restart `containerd`, check that it has been restarted and that there's **NO ERROR MESSAGES**:
 ```sh
 sudo systemctl restart containerd.service
 sudo systemctl status containerd.service
 ```
 
-Look at the output logs of `systemctl status` for any error.
+Look at the output logs of `systemctl status` for any error. Fix any error before proceding to the next steps.
+
+***** **STOP** *****
+
+Congratulations! You have a fully functional Linux Ubuntu 22.04 ready for Kubernetes 🎉 You can `clone` the VM so you won't have to go over the preceding process again 😀
 
 If you're configuration a worker node skip the next section and go to <a href="#k8s-worker">Configure K8s worker nodes</a>
 
@@ -478,20 +541,20 @@ This should be the result of the `kubeadm init` command. **Make a copy**:
     [preflight] Pulling images required for setting up a Kubernetes cluster
     [preflight] This might take a minute or two, depending on the speed of your internet connection
     [preflight] You can also perform this action in beforehand using 'kubeadm config images pull'
-    W0520 20:34:00.190384   17304 images.go:80] could not find officially supported version of etcd for Kubernetes v1.27.2, falling back to the nearest etcd version (3.5.7-0)
-    W0520 20:34:36.184550   17304 checks.go:835] detected that the sandbox image "registry.k8s.io/pause:3.6" of the container runtime is inconsistent with that used by kubeadm. It is recommended that using "registry.k8s.io/pause:3.9" as the CRI sandbox image.
+    W0522 11:21:45.907459    2173 images.go:80] could not find officially supported version of etcd for Kubernetes v1.27.2, falling back to the nearest etcd version (3.5.7-0)
+    W0522 11:22:13.497376    2173 checks.go:835] detected that the sandbox image "registry.k8s.io/pause:3.6" of the container runtime is inconsistent with that used by kubeadm. It is recommended that using "registry.k8s.io/pause:3.9" as the CRI sandbox image.
     [certs] Using certificateDir folder "/etc/kubernetes/pki"
     [certs] Generating "ca" certificate and key
     [certs] Generating "apiserver" certificate and key
-    [certs] apiserver serving cert is signed for DNS names [k8master1 kubernetes kubernetes.default kubernetes.default.svc kubernetes.default.svc.cluster.local] and IPs [10.96.0.1 192.168.13.30]
+    [certs] apiserver serving cert is signed for DNS names [k8smaster1.isociel.com kubernetes kubernetes.default kubernetes.default.svc kubernetes.default.svc.cluster.local] and IPs [10.96.0.1 192.168.13.30]
     [certs] Generating "apiserver-kubelet-client" certificate and key
     [certs] Generating "front-proxy-ca" certificate and key
     [certs] Generating "front-proxy-client" certificate and key
     [certs] Generating "etcd/ca" certificate and key
     [certs] Generating "etcd/server" certificate and key
-    [certs] etcd/server serving cert is signed for DNS names [k8master1 localhost] and IPs [192.168.13.30 127.0.0.1 ::1]
+    [certs] etcd/server serving cert is signed for DNS names [k8smaster1.isociel.com localhost] and IPs [192.168.13.30 127.0.0.1 ::1]
     [certs] Generating "etcd/peer" certificate and key
-    [certs] etcd/peer serving cert is signed for DNS names [k8master1 localhost] and IPs [192.168.13.30 127.0.0.1 ::1]
+    [certs] etcd/peer serving cert is signed for DNS names [k8smaster1.isociel.com localhost] and IPs [192.168.13.30 127.0.0.1 ::1]
     [certs] Generating "etcd/healthcheck-client" certificate and key
     [certs] Generating "apiserver-etcd-client" certificate and key
     [certs] Generating "sa" key and public key
@@ -508,15 +571,15 @@ This should be the result of the `kubeadm init` command. **Make a copy**:
     [control-plane] Creating static Pod manifest for "kube-controller-manager"
     [control-plane] Creating static Pod manifest for "kube-scheduler"
     [etcd] Creating static Pod manifest for local etcd in "/etc/kubernetes/manifests"
-    W0520 20:35:17.424759   17304 images.go:80] could not find officially supported version of etcd for Kubernetes v1.27.2, falling back to the nearest etcd version (3.5.7-0)
+    W0522 11:22:45.329284    2173 images.go:80] could not find officially supported version of etcd for Kubernetes v1.27.2, falling back to the nearest etcd version (3.5.7-0)
     [wait-control-plane] Waiting for the kubelet to boot up the control plane as static Pods from directory "/etc/kubernetes/manifests". This can take up to 4m0s
-    [apiclient] All control plane components are healthy after 7.508698 seconds
+    [apiclient] All control plane components are healthy after 7.005054 seconds
     [upload-config] Storing the configuration used in ConfigMap "kubeadm-config" in the "kube-system" Namespace
     [kubelet] Creating a ConfigMap "kubelet-config" in namespace kube-system with the configuration for the kubelets in the cluster
     [upload-certs] Skipping phase. Please see --upload-certs
-    [mark-control-plane] Marking the node k8master1 as control-plane by adding the labels: [node-role.kubernetes.io/control-plane node.kubernetes.io/exclude-from-external-load-balancers]
-    [mark-control-plane] Marking the node k8master1 as control-plane by adding the taints [node-role.kubernetes.io/control-plane:NoSchedule]
-    [bootstrap-token] Using token: ag0caw.tnkfy2qarei0jk1a
+    [mark-control-plane] Marking the node k8smaster1.isociel.com as control-plane by adding the labels: [node-role.kubernetes.io/control-plane node.kubernetes.io/exclude-from-external-load-balancers]
+    [mark-control-plane] Marking the node k8smaster1.isociel.com as control-plane by adding the taints [node-role.kubernetes.io/control-plane:NoSchedule]
+    [bootstrap-token] Using token: t75vgu.9t1panzxtl6dxs45
     [bootstrap-token] Configuring bootstrap tokens, cluster-info ConfigMap, RBAC Roles
     [bootstrap-token] Configured RBAC rules to allow Node Bootstrap tokens to get nodes
     [bootstrap-token] Configured RBAC rules to allow Node Bootstrap tokens to post CSRs in order for nodes to get long term certificate credentials
@@ -545,8 +608,8 @@ This should be the result of the `kubeadm init` command. **Make a copy**:
 
     Then you can join any number of worker nodes by running the following on each as root:
 
-    kubeadm join 192.168.13.30:6443 --token ag0caw.tnkfy2qarei0jk1a \
-        --discovery-token-ca-cert-hash sha256:22d07214fd96719000387f7b3df4a29cec1f52096def4e13e33745f5a09a81c5 
+    kubeadm join 192.168.13.30:6443 --token t75vgu.9t1panzxtl6dxs45 \
+        --discovery-token-ca-cert-hash sha256:bfa012186a6accbf8fd9ccde522a71a396e173567f1397a504b4fd200349a0e6 
 
 >Keep note of the hash but be aware that it's valid for 24 hours.
 
@@ -556,7 +619,7 @@ mkdir -p $HOME/.kube
 sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
 sudo chown $(id -u):$(id -g) $HOME/.kube/config
 ```
->**Note:** When you add a new user to administer K8s, don't forget to enter the above commands
+>**Note:** When you add a new user to administer K8s, don't forget to enter the above commands under that user.
 
 Check the status of the master with the command:
 ```sh
@@ -565,8 +628,8 @@ kubectl get nodes -o=wide
 
 The output should look like this:
 ```
-NAME        STATUS     ROLES           AGE   VERSION   INTERNAL-IP     EXTERNAL-IP   OS-IMAGE             KERNEL-VERSION         CONTAINER-RUNTIME
-k8master1   NotReady   control-plane   96s   v1.27.2   192.168.13.30   <none>        Ubuntu 22.04.2 LTS   6.3.3-060303-generic   containerd://1.6.21
+NAME                     STATUS     ROLES           AGE   VERSION   INTERNAL-IP     EXTERNAL-IP   OS-IMAGE             KERNEL-VERSION         CONTAINER-RUNTIME
+k8smaster1.isociel.com   NotReady   control-plane   98s   v1.27.2   192.168.13.30   <none>        Ubuntu 22.04.2 LTS   6.3.3-060303-generic   containerd://1.6.21
 ```
 
 The status is `NotReady` because we didn't install a CNI yet 😉
@@ -578,12 +641,12 @@ sudo systemctl status kubelet
 
 >The only error message you'll get is `"Container runtime network not ready" networkReady="NetworkReady=false reason:NetworkPluginNotReady`
 
-Congratulations! You have a fully functional Kubernetes cluster with one Master node 🎉
+Congratulations! You have a fully functional Kubernetes cluster with just one Master node 🎉
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
 ### Token and CA certificate hash (Optional)
-This section is to get the token and certificate hash if you forgot to copy the output of `kubeadm init ...` command.
+This section is to get the token and certificate hash if you forgot to copy the output of `kubeadm init ...` command from the preceding step or if you wait more than 24 hours to add a worker node.
 You can retreive the token by running the following command on the control-plane node. The token is only valid for 24 hours. It might be better to generate a new token:
 ```sh
 kubeadm token list
@@ -594,6 +657,7 @@ You can retreive the CA certificate hash by running the following command on the
 openssl x509 -pubkey -in /etc/kubernetes/pki/ca.crt | openssl rsa -pubin -outform der 2>/dev/null | \openssl dgst -sha256 -hex | sed 's/^.* //'
 ```
 
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
 <a name="k8s-worker"></a>
 
 ## Configure K8s worker nodes
@@ -602,9 +666,9 @@ This should be done on **all** worker node(s) of a K8s cluster and **ONLY** on t
 Join each of the worker node to the cluster with the command:
 
 ```sh
-sudo kubeadm join 192.168.13.30:6443 --token ag0caw.tnkfy2qarei0jk1a \
+sudo kubeadm join 192.168.13.30:6443 --token t75vgu.9t1panzxtl6dxs45 \
 --cri-socket unix:///var/run/containerd/containerd.sock \
---discovery-token-ca-cert-hash sha256:22d07214fd96719000387f7b3df4a29cec1f52096def4e13e33745f5a09a81c5
+--discovery-token-ca-cert-hash sha256:bfa012186a6accbf8fd9ccde522a71a396e173567f1397a504b4fd200349a0e6
 ```
 
 The ouput should look like this:
@@ -628,34 +692,41 @@ Check that the worker node have joined the cluster and it's ready. Use this comm
 kubectl get nodes -o=wide
 ```
 
-You should see something similar:
+You should see something similar after running the command on all your `worker node(s)`:
 
-    NAME        STATUS     ROLES           AGE   VERSION   INTERNAL-IP     EXTERNAL-IP   OS-IMAGE             KERNEL-VERSION         CONTAINER-RUNTIME
-    k8master1   NotReady   control-plane   23h   v1.27.2   192.168.13.30   <none>        Ubuntu 22.04.2 LTS   6.3.3-060303-generic   containerd://1.6.21
-    k8worker1   NotReady   <none>          46s   v1.27.2   192.168.13.35   <none>        Ubuntu 22.04.2 LTS   6.3.3-060303-generic   containerd://1.6.21
+    NAME                     STATUS     ROLES           AGE     VERSION   INTERNAL-IP     EXTERNAL-IP   OS-IMAGE             KERNEL-VERSION         CONTAINER-RUNTIME
+    k8smaster1.isociel.com   NotReady   control-plane   6m37s   v1.27.2   192.168.13.30   <none>        Ubuntu 22.04.2 LTS   6.3.3-060303-generic   containerd://1.6.21
+    k8sworker1.isociel.com   NotReady   <none>          108s    v1.27.2   192.168.13.35   <none>        Ubuntu 22.04.2 LTS   6.3.3-060303-generic   containerd://1.6.21
+    k8sworker2.isociel.com   NotReady   <none>          61s     v1.27.2   192.168.13.36   <none>        Ubuntu 22.04.2 LTS   6.3.3-060303-generic   containerd://1.6.21
+    k8sworker3.isociel.com   NotReady   <none>          56s     v1.27.2   192.168.13.37   <none>        Ubuntu 22.04.2 LTS   6.3.3-060303-generic   containerd://1.6.21
+
 
 >Repeat the steps above if you want more worker node.
 
 ### Add Role (Optional)
 As you see above, the role for worker node is ­­`<none>`, if you want to change it, you can add a label. The most important part in the label is the `Key`. The following two commands are executed on the **control plane**, not the worker node:
 ```sh
-kubectl label node k8worker1 node-role.kubernetes.io/worker=myworker
+kubectl label node k8sworker1.isociel.com node-role.kubernetes.io/worker=myworker
+kubectl label node k8sworker2.isociel.com node-role.kubernetes.io/worker=myworker
+kubectl label node k8sworker3.isociel.com node-role.kubernetes.io/worker=myworker
 ```
 
 You can remove the label with the command:
 ```sh
-kubectl label node k8worker1 node-role.kubernetes.io/worker-
+kubectl label node <hostname> node-role.kubernetes.io/worker-
 ```
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
 ## Install Cilium (Master node ONLY)
-We're going to use Cilium as our CNI networking solution. Cilium is an incubating CNCF project that implements a wide range of networking, security and observability features, much of it through the Linux kernel eBPF facility. This makes Cilium fast and resource efficient. Cilium offers a command line tool that we can use to install the CNI components.
+We're going to use Cilium as our CNI networking solution. Cilium is an incubating CNCF project that implements a wide range of networking, security and observability features, much of it through the Linux kernel eBPF facility. This makes Cilium fast and resource efficient. We'll use Cilium's' command line tool to install the CNI components.
 1.	Download
 2.	Extract
 3.	Install and test the Cilium CLI:
 
->**Note:** On master node only
+>**Note:** The installation of Cilium or any other CNI is done on the **control plane** only.
+
+This is a quick and dirty installation. I'm not checking the hash of the downloaded file 😱
 
 Download the package:
 ```sh
@@ -667,19 +738,37 @@ Extract it:
 sudo tar xzvfC cilium-linux-amd64.tar.gz /usr/local/bin
 ```
 
-Install cilium CNI (be patient):
+Install cilium CNI as a normal user and be patient:
 ```sh
 cilium install
 ```
+>**Note:** If the install fail, run it again 😂 I'm serious
 
->**Note:** If the install fail, run it again
+The output should look like this:
 
-To validate that Cilium has been properly installed, you can run:
+    ℹ️  Using Cilium version 1.13.2
+    🔮 Auto-detected cluster name: kubernetes
+    🔮 Auto-detected datapath mode: tunnel
+    🔮 Auto-detected kube-proxy has been installed
+    ℹ️  helm template --namespace kube-system cilium cilium/cilium --version 1.13.2 --set cluster.id=0,cluster.name=kubernetes,encryption.nodeEncryption=false,kubeProxyReplacement=disabled,operator.replicas=1,serviceAccounts.cilium.name=cilium,serviceAccounts.operator.name=cilium-operator,tunnel=vxlan
+    ℹ️  Storing helm values file in kube-system/cilium-cli-helm-values Secret
+    🔑 Created CA in secret cilium-ca
+    🔑 Generating certificates for Hubble...
+    🚀 Creating Service accounts...
+    🚀 Creating Cluster roles...
+    🚀 Creating ConfigMap for Cilium version 1.13.2...
+    🚀 Creating Agent DaemonSet...
+    🚀 Creating Operator Deployment...
+    ⌛ Waiting for Cilium to be installed and ready...
+    ✅ Cilium was successfully installed! Run 'cilium status' to view installation health
+
+
+To validate that Cilium has been properly installed, you can run the command (be patient after the preceding command finishes. It might take 1-2 minutes for the status to show `Ok`):
 ```sh
 cilium status
 ```
 
-The ouput should look like this. Initially `Hubble Relay` is disabled for now:
+The ouput should look like this. Initially `Hubble Relay` is disabled:
 
         /¯¯\
     /¯¯\__/¯¯\    Cilium:          OK
@@ -696,7 +785,6 @@ The ouput should look like this. Initially `Hubble Relay` is disabled for now:
     Image versions    cilium             quay.io/cilium/cilium:v1.13.2@sha256:85708b11d45647c35b9288e0de0706d24a5ce8a378166cadc700f756cc1a38d6: 4
                     cilium-operator    quay.io/cilium/operator-generic:v1.13.2@sha256:a1982c0a22297aaac3563e428c330e17668305a41865a842dec53d241c5490ab: 1
 
-
 Run the following command to validate that your cluster has proper network connectivity:
 ```sh
 cilium connectivity test
@@ -707,37 +795,34 @@ Check that the master and worker nodes are ready:
 kubectl get nodes -o=wide
 ```
 
-    NAME          STATUS   ROLES           AGE    VERSION   INTERNAL-IP     EXTERNAL-IP   OS-IMAGE             KERNEL-VERSION         CONTAINER-RUNTIME
-    host4051   Ready    control-plane   142m   v1.27.2   192.168.13.180   <none>        Ubuntu 22.04.2 LTS   6.3.3-060303-generic   containerd://1.6.21
-    host4151   Ready    worker          66m    v1.27.2   192.168.13.185   <none>        Ubuntu 22.04.2 LTS   6.3.3-060303-generic   containerd://1.6.21
-    host4152   Ready    worker          20m    v1.27.2   192.168.13.186   <none>        Ubuntu 22.04.2 LTS   6.3.3-060303-generic   containerd://1.6.21
-    host4153   Ready    worker          20m    v1.27.2   192.168.13.187   <none>        Ubuntu 22.04.2 LTS   6.3.3-060303-generic   containerd://1.6.21
+    NAME                     STATUS   ROLES           AGE   VERSION   INTERNAL-IP     EXTERNAL-IP   OS-IMAGE             KERNEL-VERSION         CONTAINER-RUNTIME
+    k8smaster1.isociel.com   Ready    control-plane   16m   v1.27.2   192.168.13.30   <none>        Ubuntu 22.04.2 LTS   6.3.3-060303-generic   containerd://1.6.21
+    k8sworker1.isociel.com   Ready    worker          12m   v1.27.2   192.168.13.35   <none>        Ubuntu 22.04.2 LTS   6.3.3-060303-generic   containerd://1.6.21
+    k8sworker2.isociel.com   Ready    worker          11m   v1.27.2   192.168.13.36   <none>        Ubuntu 22.04.2 LTS   6.3.3-060303-generic   containerd://1.6.21
+    k8sworker3.isociel.com   Ready    worker          11m   v1.27.2   192.168.13.37   <none>        Ubuntu 22.04.2 LTS   6.3.3-060303-generic   containerd://1.6.21
+
 
 Check the Pods for all namespace. You will see the Cilium Pods.
 ```sh
 kubectl get pod -A
 ```
 
-    NAMESPACE     NAME                                  READY   STATUS    RESTARTS   AGE
-    cilium-test   client-6965d549d5-hgxg8               1/1     Running   0          22m
-    cilium-test   client2-76f4d7c5bc-lhrv6              1/1     Running   0          22m
-    cilium-test   echo-other-node-f57db5457-vxxxd       2/2     Running   0          22m
-    cilium-test   echo-same-node-799c9b99f-q9frr        2/2     Running   0          22m
-    kube-system   cilium-8pzz5                          1/1     Running   0          26m
-    kube-system   cilium-operator-5bb89494dc-9ndmd      1/1     Running   0          26m
-    kube-system   cilium-p8kql                          1/1     Running   0          26m
-    kube-system   cilium-ttzx5                          1/1     Running   0          26m
-    kube-system   cilium-x4z4h                          1/1     Running   0          26m
-    kube-system   coredns-5d78c9869d-4dtcm              1/1     Running   0          164m
-    kube-system   coredns-5d78c9869d-flsd8              1/1     Running   0          164m
-    kube-system   etcd-host4051                         1/1     Running   228        164m
-    kube-system   kube-apiserver-host4051               1/1     Running   210        164m
-    kube-system   kube-controller-manager-host4051      1/1     Running   219        164m
-    kube-system   kube-proxy-7rqv9                      1/1     Running   0          43m
-    kube-system   kube-proxy-gm7g6                      1/1     Running   0          89m
-    kube-system   kube-proxy-sqtpd                      1/1     Running   0          164m
-    kube-system   kube-proxy-vgbqb                      1/1     Running   0          43m
-    kube-system   kube-scheduler-host4051               1/1     Running   235        164m
+    NAMESPACE     NAME                                             READY   STATUS    RESTARTS   AGE
+    kube-system   cilium-8pgq7                                     1/1     Running   0          3m49s
+    kube-system   cilium-ccrgl                                     1/1     Running   0          3m49s
+    kube-system   cilium-crjsl                                     1/1     Running   0          3m49s
+    kube-system   cilium-jjrhs                                     1/1     Running   0          3m49s
+    kube-system   cilium-operator-5bb89494dc-kg7rb                 1/1     Running   0          3m49s
+    kube-system   coredns-5d78c9869d-98bvw                         1/1     Running   0          17m
+    kube-system   coredns-5d78c9869d-v8qr6                         1/1     Running   0          17m
+    kube-system   etcd-k8smaster1.isociel.com                      1/1     Running   0          17m
+    kube-system   kube-apiserver-k8smaster1.isociel.com            1/1     Running   0          17m
+    kube-system   kube-controller-manager-k8smaster1.isociel.com   1/1     Running   0          17m
+    kube-system   kube-proxy-hh9kc                                 1/1     Running   0          12m
+    kube-system   kube-proxy-lxkd2                                 1/1     Running   0          17m
+    kube-system   kube-proxy-zc49j                                 1/1     Running   0          11m
+    kube-system   kube-proxy-zl8zc                                 1/1     Running   0          11m
+    kube-system   kube-scheduler-k8smaster1.isociel.com            1/1     Running   0          17m
 
 Delete the Cilium package downloaded in the step above:
 ```sh
@@ -750,7 +835,7 @@ sudo systemctl status kubelet.service
 kubectl version --output=yaml
 ```
 
-You should have a fully functionnal Kubernetes Cluster with one master node and one worker node.
+You should have a fully functionnal Kubernetes Cluster with one master node and three worker nodes 🥳 🎉
 
 # Install Helm
 [See this page to install Helm](https://github.com/ddella/Debian11-K8s/blob/main/helm.md)
@@ -770,4 +855,5 @@ Project Link: [https://github.com/ddella/Debian11-Docker-K8s](https://github.com
 [Good reference for K8s and Ubuntu](https://computingforgeeks.com/install-kubernetes-cluster-ubuntu-jammy/)  
 [Install latest Ubuntu Linux Kernel](https://linux.how2shout.com/linux-kernel-6-2-features-in-ubuntu-22-04-20-04/#5_Installing_Linux_62_Kernel_on_Ubuntu)  
 [Containerd configuration file modification for K8s](https://devopsquare.com/how-to-create-kubernetes-cluster-with-containerd-90399ec3b810)  
-[apt-key deprecated](https://itsfoss.com/apt-key-deprecated/)
+[apt-key deprecated](https://itsfoss.com/apt-key-deprecated/)  
+[Cilium Quick installation](https://docs.cilium.io/en/stable/gettingstarted/k8s-install-default/#k8s-install-quick)

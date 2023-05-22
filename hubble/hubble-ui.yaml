@@ -1,0 +1,19 @@
+# hubble-ui.yaml
+# It will expose node port permanently.
+# http://<Kubernetes node IP>:30012
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: hubble-ui
+  namespace: kube-system
+spec:
+  type: NodePort
+  selector:
+    k8s-app: hubble-ui # label of the Deployment
+  ports:
+    - name: hubble-ui
+      protocol: TCP
+      port: 12000        # port exposed internally in the cluster
+      targetPort: 8081   # the container port to send requests to
+      nodePort: 30012    # port assigned on each the node for external access

@@ -1,0 +1,19 @@
+# hubble-relay.yaml
+# It will expose node port permanently.
+# hubble --server <node IP addr>:30245 status
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: hubble-relay
+  namespace: kube-system
+spec:
+  type: NodePort
+  selector:
+    k8s-app: hubble-relay # label of the Deployment
+  ports:
+    - name: hubble-relay
+      protocol: TCP
+      port: 4245        # port exposed internally in the cluster
+      targetPort: 4245  # the container port to send requests to
+      nodePort: 30245   # port assigned on each the node for external access

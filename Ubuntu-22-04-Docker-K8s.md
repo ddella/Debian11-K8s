@@ -170,12 +170,13 @@ sudo update-grub2
 ### Install Utilities (optional)
 Some usefull utilities that might bu usefull down the road. Take a look and feel free to add or remove:
 ```sh
-sudo apt -y install iputils-tracepath iputils-ping iputils-arping
-sudo apt -y install dnsutils
-sudo apt -y install tshark
-sudo apt -y install netcat
-sudo apt -y install traceroute
-sudo apt -y install vim
+sudo apt install -y iputils-tracepath iputils-ping iputils-arping
+sudo apt install -y dnsutils
+sudo apt install -y tshark
+sudo apt install -y netcat
+sudo apt install -y traceroute
+sudo apt install -y vim
+sudo apt install -y jq
 ```
 
 To remove a package configurations, data and all of its dependencies, you can use the following command:

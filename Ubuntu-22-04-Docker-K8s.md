@@ -48,10 +48,10 @@ For this tutorial, I will be using four Ubuntu 22.04.2 systems with following ho
 ## Configurations
 |Role|FQDN|IP|OS|Kernel|RAM|vCPU|
 |----|----|----|----|----|----|----|
-|Master|k8smaster1.example.com|192.168.13.30|Ubuntu 22.04.2|6.3.2|4G|4|
-|Worker|k8sworker1.example.com|192.168.13.35|Ubuntu 22.04.2|6.3.2|4G|4|
-|Worker|k8sworker2.example.com|192.168.13.36|Ubuntu 22.04.2|6.3.2|4G|4|
-|Worker|k8sworker3.example.com|192.168.13.37|Ubuntu 22.04.2|6.3.2|4G|4|
+|Master|k8smaster1.example.com|192.168.13.30|Ubuntu 22.04.2|6.3.3|4G|4|
+|Worker|k8sworker1.example.com|192.168.13.35|Ubuntu 22.04.2|6.3.3|4G|4|
+|Worker|k8sworker2.example.com|192.168.13.36|Ubuntu 22.04.2|6.3.3|4G|4|
+|Worker|k8sworker3.example.com|192.168.13.37|Ubuntu 22.04.2|6.3.3|4G|4|
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
@@ -159,7 +159,7 @@ dpkg --list | grep linux-image
 Remove old kernels listing from the preceding step with the command (adjust the image name):
 
 ```sh
-sudo apt-get --purge remove linux-image-5.15.0-72-generic
+sudo apt --purge remove linux-image-5.15.0-72-generic
 ```
 
 After removing the old kernel, update the grub2 configuration:
@@ -177,11 +177,12 @@ sudo apt install -y netcat
 sudo apt install -y traceroute
 sudo apt install -y vim
 sudo apt install -y jq
+sudo apt install -y bash-completion
 ```
 
 To remove a package configurations, data and all of its dependencies, you can use the following command:
 ```sh
-sudo apt-get -y autoremove --purge <package name>
+sudo apt -y autoremove --purge <package name>
 ```
 
 ### SSH
@@ -296,7 +297,6 @@ You should have a standard Ubuntu 22.04 installation 🎉
 ### Set bash auto cpmpletion
 I like auto completion:
 ```sh
-sudo apt install bash-completion
 grep -wq '^source /etc/profile.d/bash_completion.sh' ~/.bashrc || echo 'source /etc/profile.d/bash_completion.sh'>>~/.bashrc
 source .bashrc
 ```
@@ -497,7 +497,7 @@ source ~/.bashrc
 By default each time you run the command `crictl` you'll need to prefix it with `sudo`. Let's fix this by:
 - adding a new group `crictl`
 - add your user to that group
-- modify the group owner of `/var/run/containerd/containerd.sock`
+- modify the file `/etc/containerd/config.toml` to change the group owner of `/var/run/containerd/containerd.sock`
 
 Add a group to run the command `crictl` commands without using `sudo`:
 ```sh
@@ -509,18 +509,29 @@ Enabling your non-root user to be part of the group `crictl`(Log out from the cu
 sudo usermod -aG crictl ${USER}
 ```
 
-Change the group of `/var/run/containerd/containerd.sock` to crictl:
+Modify the file `/etc/containerd/config.toml` to change the group owner of `/var/run/containerd/containerd.sock`:
+Get the group ID of the group you just created:
 ```sh
-sudo chgrp crictl /var/run/containerd/containerd.sock
+getent group crictl | cut -d: -f3
 ```
 
-Restart `containerd`, check that it has been restarted and that there's **NO ERROR MESSAGES**:
+Edit the file `/etc/containerd/config.toml` with your prefered text editor and change the `gid` value from the default value of `0` to the GID of the group `crictl`:
+```sh
+[grpc]
+  address = "/run/containerd/containerd.sock"
+  gid = 1001
+``` 
+
+Restart the `containerd.service` service and check that it has been restarted without any **ERROR MESSAGES**:
 ```sh
 sudo systemctl restart containerd.service
 sudo systemctl status containerd.service
 ```
 
-Look at the output logs of `systemctl status` for any error. Fix any error before proceding to the next steps.
+The file `/run/containerd/containerd.sock` should be owned by the group `crictl` 
+```
+srw-rw---- 1 root crictl 0 May 23 08:31 /run/containerd/containerd.sock
+```
 
 ***** **STOP** *****
 

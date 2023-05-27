@@ -123,7 +123,7 @@ Use this Bash script for Ubuntu (and derivatives such as LinuxMint) to easily (u
 wget https://raw.githubusercontent.com/pimlie/ubuntu-mainline-kernel.sh/master/ubuntu-mainline-kernel.sh
 ```
 
-Once the Kernel has been installed, reboot the server with the command:
+Make the file executable and copy it to `/usr/local/bin/`:
 ```sh
 chmod +x ubuntu-mainline-kernel.sh
 sudo mv ubuntu-mainline-kernel.sh /usr/local/bin/
@@ -137,8 +137,7 @@ ubuntu-mainline-kernel.sh -c
 ```
 
 4. Installing latest Linux 6.x Kernel on Ubuntu
-To install the latest Linux kernel package which is available in the repository of https://kernel.ubuntu.com, we can use
-
+To install the latest Linux kernel package which is available in the repository of https://kernel.ubuntu.com, use the command:
 ```sh
 sudo ubuntu-mainline-kernel.sh -i
 ```
@@ -258,7 +257,7 @@ sudo sysctl --system
 ```
 
 ### Terminal color (Optional)
-If you like a terminal with colors, add those lines to your `~/.bashrc`. Lots of Linux distro have a red prompt for `root` and `green` for normal users. I decided to have `CYAN` for normal users to show that I'm in Kubernetes. Adjust to your preference:
+If you like a terminal prompt with colors, add those lines to your `~/.bashrc`. Lots of Linux distro have a red prompt for `root` and `green` for normal users. I decided to have `CYAN` for normal users to show that I'm in Kubernetes. Adjust to your preference:
 ```sh
 cat >> .bashrc <<'EOF'
 
@@ -276,7 +275,7 @@ unset NORMAL RED GREEN CYAN
 alias k='kubectl'
 EOF
 ```
->**Note:** Make sure to surround `EOF` with single quotes. Failure to do so will replace variables with their value.
+>**Note:** Make sure to surround `'EOF'` with single quotes. Failure to do so will replace variables with their value.
 
 Apply the change:
 ```sh
@@ -310,8 +309,8 @@ sudo apt autoremove
 <a name="docker-ce"></a>
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
-# Install Docker-CE on Ubuntu
-For this tutorial, we're not using Docker container runtime but I like to have Docker-CE installed. This is applicable to master and worker node in a K8s cluster.
+# Install Docker-CE on Ubuntu (Optional)
+This is really optional. You don't need Docker to run K8s. For this tutorial, we're not using Docker container runtime but I like to have Docker-CE installed. This is applicable to master and worker node in a K8s cluster.
 
 Install Prerequisites:
 ```sh
@@ -343,7 +342,7 @@ Check the Docker service status using the following command:
 sudo systemctl is-active docker
 ```
 
-Enabling your non-root user to run Docker commands without using `sudo` (Log out from the current terminal and log back in)
+Enabling your non-root user to run Docker commands without using `sudo` (Log out from the current terminal and log back in for the change to take effect)
 ```sh
 sudo usermod -aG docker ${USER}
 ```
@@ -361,7 +360,7 @@ sudo systemctl status docker.service
 sudo systemctl status docker.socket
 sudo systemctl status containerd.service
 ```
->**Note:** Make sure there's no error for `containerd.service` as this will be our CRI
+>**Note:** Make sure there's no error for `containerd.service` as this will be our CRI for K8s
 
 If you installed `docker-ce-cli` package Docker bash completion should already be installed:
 ```sh
@@ -409,7 +408,7 @@ sudo apt install -y kubectl kubelet kubeadm
 ```
 
 Optional:
-The following command hold back packages to prevent any updates. I didn't do it in my lab:
+The following command hold back packages to prevent any updates with `apt`. I didn't do it in my lab:
 ```sh
 sudo apt-mark hold kubectl kubelet kubeadm
 ```
@@ -420,7 +419,7 @@ kubectl version --output=yaml
 kubeadm version --output=yaml
 ```
 
->You'll get the following error message from **kubectl**: `The connection to the server localhost:8080 was refused - did you specify the right host or port?`. We haven't installed anything yet!
+>You'll get the following error message from **kubectl**: `The connection to the server localhost:8080 was refused - did you specify the right host or port?`. We haven't installed anything yet. It's a normal problem 😂!
 
 Enable `kubectl` and `kubeadm` autocompletion for Bash:
 ```sh
@@ -437,14 +436,15 @@ source ~/.bashrc
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
 ## Install Container Runtime (Master and Worker nodes)
-To run containers in Pods, Kubernetes uses a container runtime. The supported container runtimes are:
+To run containers in Pods, Kubernetes uses a Container Runtime Interface (CRI). The supported CRI are:
 
 - Docker
 - CRI-O
 - Containerd
 
-I've decided to use **Containerd**, since even Docker uses it. The good news is since we installed Docker, we already have installed **Containerd** but we need to adjust the configuration for K8s. Just verify with the command:
+I've decided to use **Containerd**, since even Docker uses it. The good news is since we installed Docker, we already have installed **Containerd** but we need to adjust the configuration for K8s.
 
+Verify that containerd is indeed installed:
 ```sh
 dpkg -l containerd.io
 ```
@@ -460,7 +460,7 @@ ii  containerd.io  1.6.21-1     amd64        An open and reliable container runt
 ```
 
 ### Containerd configuration (Master and Worker nodes)
-Prepare the configuration of `containerd` on both master and worker nodes. If you start `kubeadm ...` you will get the following error:
+Prepare the configuration of `containerd` on **both master and worker** nodes. If you start `kubeadm ...` without adjusting the configuration, you will get the following error:
 
 ```
 [preflight] Running pre-flight checks
@@ -480,7 +480,7 @@ Edit the configuration file `/etc/containerd/config.toml`. In the section `[plug
 sudo sed -i 's/SystemdCgroup = false/SystemdCgroup = true/' /etc/containerd/config.toml
 ```
 
-If you don't want to specify the endpoint every time you use the command `crictl`, you can create the file `/etc/crictl.yaml` by specifying the endpoint. If you don't do that, you'll have to enter the endpoint each time like this `crictl --runtime-endpoint unix:///run/containerd/containerd.sock ...`
+If you don't want to specify the endpoint every time you use the command `crictl`, you can create the file `/etc/crictl.yaml` by specifying the endpoint. If you don't create the file, you'll have to enter the endpoint each time like this: `crictl --runtime-endpoint unix:///run/containerd/containerd.sock ...`
 ```sh
 cat <<EOF | sudo tee /etc/crictl.yaml
 runtime-endpoint: unix:///var/run/containerd/containerd.sock
@@ -494,12 +494,12 @@ sudo crictl completion | sudo tee /etc/bash_completion.d/crictl > /dev/null
 source ~/.bashrc
 ```
 
-By default each time you run the command `crictl` you'll need to prefix it with `sudo`. Let's fix this by:
-- adding a new group `crictl`
-- add your user to that group
+By default each time you run the command `crictl` you'll need to prefix it with `sudo`. You can change the group permission of the API by:
+- adding a new group like `crictl`
+- add your user(s) to the group `crictl`
 - modify the file `/etc/containerd/config.toml` to change the group owner of `/var/run/containerd/containerd.sock`
 
-Add a group to run the command `crictl` commands without using `sudo`:
+Add a new group to run the command `crictl` commands without using `sudo`:
 ```sh
 sudo addgroup crictl
 ```
@@ -509,18 +509,10 @@ Enabling your non-root user to be part of the group `crictl`(Log out from the cu
 sudo usermod -aG crictl ${USER}
 ```
 
-Modify the file `/etc/containerd/config.toml` to change the group owner of `/var/run/containerd/containerd.sock`:
-Get the group ID of the group you just created:
+Modify the file `/etc/containerd/config.toml` to change the GID of `/var/run/containerd/containerd.sock` to the GID of the group `crictl`:
 ```sh
-getent group crictl | cut -d: -f3
+sudo sed -i "s/gid = 0/gid = $(getent group crictl | cut -d: -f3)/" /etc/containerd/config.toml
 ```
-
-Edit the file `/etc/containerd/config.toml` with your prefered text editor and change the `gid` value from the default value of `0` to the GID of the group `crictl`:
-```sh
-[grpc]
-  address = "/run/containerd/containerd.sock"
-  gid = 1001
-``` 
 
 Restart the `containerd.service` service and check that it has been restarted without any **ERROR MESSAGES**:
 ```sh
@@ -848,6 +840,34 @@ kubectl version --output=yaml
 ```
 
 You should have a fully functionnal Kubernetes Cluster with one master node and three worker nodes 🥳 🎉
+
+# Create a username to administor K8s
+If you need to create another username to administor K8s, follow thoses steps
+
+## Create the user
+Create the new username, assign the groups and set the password:
+```sh
+sudo useradd -s /bin/bash -m -G sudo,docker,crictl <username>
+sudo passwd <username>
+```
+
+## Login with the new user
+The new user can't administor K8s without the correct certificates. Login with the new user and copy the necessary files from the initial K8s installation:
+```sh 
+mkdir -p $HOME/.kube
+sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
+sudo chown $(id -u):$(id -g) $HOME/.kube/config
+```
+
+## SSH keys
+Generate a public/private key pair for the new user:
+```sh
+ssh-keygen -q -t ecdsa -N '' -f ~/.ssh/id_ecdsa <<<y >/dev/null 2>&1
+```
+ If you want to login to the this node without password from another Linux, copy it's public key to the file `id_ecdsa.pub`:
+```sh
+ssh-copy-id -i ~/.ssh/id_ecdsa.pub 192.168.13.3x
+```
 
 # Install Helm
 [See this page to install Helm](https://github.com/ddella/Debian11-K8s/blob/main/helm.md)

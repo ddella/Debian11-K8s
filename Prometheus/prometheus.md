@@ -48,8 +48,6 @@ Prometheus needs storage space to store data. There's 2 components that needs st
 
 Create a Persistent Volume (PV) and a Persistent Volume Claim (PVC) `yaml` file called `prom-srv-pv-pvc.yaml` with the following content. This is for the server component:
 
->**Note:** The directory needs to exist on the NSF server
-
 ```sh
 cat <<EOF | tee prom-srv-pv-pvc.yaml > /dev/null
 apiVersion: v1
@@ -100,9 +98,10 @@ kubectl create -f prom-srv-pv-pvc.yaml
 ```
 
 Output should be:
-
-    persistentvolume/prometheus-srv-pv created
-    persistentvolumeclaim/prometheus-srv-pvc created
+```
+persistentvolume/prometheus-srv-pv created
+persistentvolumeclaim/prometheus-srv-pvc created
+```
 
 ## PV for for Prometheus Alert
 Create a Persistent Volume (PV) and a Persistent Volume Claim (PVC) `yaml` file called `prom-ale-pv-pvc.yaml` with the following content. This is for the alert component:
@@ -157,9 +156,10 @@ kubectl create -f prom-ale-pv-pvc.yaml
 ```
 
 Output should be:
-
-    persistentvolume/prometheus-ale-pv created
-    persistentvolumeclaim/storage-prometheus-alertmanager-0 created
+```
+persistentvolume/prometheus-ale-pv created
+persistentvolumeclaim/storage-prometheus-alertmanager-0 created
+```
 
 ## Test Persistent Volumes
 Make sure that both PV's have been created and that both PVC's are bound to the respective PV's:
@@ -189,7 +189,9 @@ Check the version available on Helm (Optional):
 helm show chart prometheus-community/prometheus | grep ^appVersion
 ```
 
-Time to install Prometheus with Helm. We'll use a `yaml` file for the configurstion adjustments. Let's create the file and start the installation with `helm`.
+Time to install Prometheus with Helm. We'll use a `yaml` file for the configuration adjustments. Let's create the file and start the installation with `helm`.
+
+>**Note:** The `alertmanager` section is not taken into account in the installation. The server section is applied correctly.
 
 Create the file `values.yaml`:
 ```sh
@@ -228,16 +230,16 @@ server:
 EOF
 ```
 
-Install Prometheus, in namespace `prometheus`, with a customize configuration:
+Install Prometheus in namespace `prometheus` with a customized configuration:
 ```sh
 helm install prometheus prometheus-community/prometheus -n prometheus -f values.yaml
 ```
 
-[Configuration](https://github.com/helm/charts/blob/master/stable/prometheus/README.md)
+>See this link for the [Configuration](https://github.com/helm/charts/blob/master/stable/prometheus/README.md) of `values.yaml`
 
 The lengthy output should looke like this:
 
->**Note:** The labels `app=prometheus,component=server` are wrong. They shoud be `app.kubernetes.io/name=prometheus,app.kubernetes.io/component=server`:
+>**Note:** The labels `app=prometheus,component=server` are wrong. They shoud be `app.kubernetes.io/name=prometheus,app.kubernetes.io/component=server`. If yhou type the command `kubectl get pods` you'll get an error. Replace the labels and it should work correctly.
 
     NAME: prometheus
     LAST DEPLOYED: Sun May 28 12:35:36 2023
@@ -286,7 +288,7 @@ Check that all Prometheus Pods are `running`. None should be in `pending` status
 kubectl get pods -n prometheus
 ```
 
-Make sure the pods `prometheus-server-xxxxx` and `prometheus-alertmanager-0` are in status `Running`. The most common problem is the persistent volume claim.
+Make sure the pods `prometheus-server-xxxxx` and `prometheus-alertmanager-0` are in status `Running`. The most common problem is the persistent volume claim (PVC).
 
 Output should look like this:
 
@@ -300,7 +302,7 @@ Output should look like this:
     prometheus-prometheus-pushgateway-7cfd5f66f4-7s4rv   1/1     Running   0          2m30s
     prometheus-server-76b45bbf6b-btkff                   2/2     Running   0          2m30s
 
-### Troubleshoot commands
+# Troubleshooting commands
 Use the command to troubleshoot the `prometheus-server` Pods:
 ```sh
 kubectl describe pods prometheus-server-76b45bbf6b-btkff -n prometheus
@@ -367,7 +369,10 @@ You shouldn't see anything in the namespace `prometheus`
 kubectl get all -n prometheus
 ```
 
-The only thing left are the images for the container:
+If you want to remove the images, go on each node (master and worker):
+1. List the image(s)
+
+List the local images:
 ```sh
 crictl images ls
 ```
@@ -383,7 +388,8 @@ quay.io/prometheus/prometheus                            v2.44.0             759
 ...
 ```
 
-Image can be removed with the command:
+
+2. Delete the image(s) with the command:
 ```sh
 crictl rmi <IMAGE ID>
 ```

@@ -44,9 +44,9 @@ sudo chown -R nobody:nogroup /nfs-data/prom-ale-pv
 ```
 
 # PV and PVC for Prometheus Server
-Prometheus needs storage space to store data. There's 2 components that needs storage. The server and the alert manager. Let's create 2 PV's to an NFS volume on the master node.
+Prometheus needs storage space to store data. There's 2 components that needs storage. The `server` and the `alertmanager`. Let's create 2 PV's to an NFS volume on the master node.
 
-Create a Persistent Volume (PV) and a Persistent Volume Claim (PVC) `yaml` file called `prom-srv-pv-pvc.yaml` with the following content. This is for the server component:
+Create a Persistent Volume (PV) and a Persistent Volume Claim (PVC) `yaml` file called `prom-srv-pv-pvc.yaml` with the following content. This is for the `server` component:
 
 ```sh
 cat <<EOF | tee prom-srv-pv-pvc.yaml > /dev/null
@@ -92,7 +92,7 @@ status:
 EOF
 ```
 
-Create the PV and PVC, for the server portion, to your cluster by running the command:
+Create the PV and PVC, for the server portion, on your cluster by running the command:
 ```sh
 kubectl create -f prom-srv-pv-pvc.yaml
 ```
@@ -103,8 +103,8 @@ persistentvolume/prometheus-srv-pv created
 persistentvolumeclaim/prometheus-srv-pvc created
 ```
 
-## PV for for Prometheus Alert
-Create a Persistent Volume (PV) and a Persistent Volume Claim (PVC) `yaml` file called `prom-ale-pv-pvc.yaml` with the following content. This is for the alert component:
+## PV and PVC for for Prometheus AlertManager
+Create a Persistent Volume (PV) and a Persistent Volume Claim (PVC) `yaml` file called `prom-ale-pv-pvc.yaml` with the following content. This is for the `alertnamager` component:
 ```sh
 cat <<EOF | tee prom-ale-pv-pvc.yaml > /dev/null
 apiVersion: v1
@@ -369,7 +369,7 @@ You shouldn't see anything in the namespace `prometheus`
 kubectl get all -n prometheus
 ```
 
-If you want to remove the images, go on each node (master and worker):
+If you want to remove the images, go on each node (master and worker) and:
 1. List the image(s)
 
 List the local images:
@@ -387,7 +387,6 @@ quay.io/prometheus/node-exporter                         v1.5.0              0da
 quay.io/prometheus/prometheus                            v2.44.0             75972a31ad256       93MB
 ...
 ```
-
 
 2. Delete the image(s) with the command:
 ```sh

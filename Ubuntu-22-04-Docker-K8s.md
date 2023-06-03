@@ -15,21 +15,20 @@ As of writing this tutorial, those were the latest versions.
 |**Cilium**|1.13.2|
 
 # Introduction
-The step-by-step guide demonstrates you how to install Kubernetes cluster on Ubuntu 22.04.2 server edition with Kubeadm utility for a Learning environment. All the Ubuntu hosts are running as VMs on VMware Fusion.
+The step-by-step guide demonstrates how to install a Kubernetes cluster on Ubuntu 22.04.2 server edition with Kubeadm utility for a learning environment. All the Ubuntu hosts are running as VMs on VMware Fusion.
 
 This Kubernetes (K8s) cluster is composed of one master node and three worker nodes. Master node works as the control plane and the worker nodes runs the actual container(s) inside Pods.
 
-**This tutorial in not meant for production installation and is not a tutorial on Ubuntu intallation**. The tutorial main goal is to understand how to install a basic on-prem K8s cluster.
+**This tutorial in not meant for production installation and is not a tutorial on Ubuntu intallation**. The tutorial main goal is to understand how to install a basic on-prem K8s cluster to get acquainted with the technology. In this tutorial we are **not** installing Docker.
 
 In this tutorial, you will set up a Kubernetes Cluster by:
 
-- Setting up four Ubuntu virtual machines with a Kernel 6.3.2
-- Installing Docker-CE and Docker Compose plugin
-- Installing CRI-Docker plugin
+- Setting up four Ubuntu 22.04 virtual machines with Kernel 6.3.3
+- Installing [Containerd](https://containerd.io/) as the CRI for K8s
 - Installing Kubernetes kubelet, kubeadm, and kubectl
-- Installing a CNI Plugin (Cilium)
-- Configuring Docker as the container runtime for Kubernetes
+- Installing [Cilium](https://cilium.io/) as the CNI Plugin
 - Initializing one K8s master node and adding three worker nodes
+- The K8s master node will also run NFS server
 
 At the end you will have a complete K8s cluster ready to run your Pods.
 
@@ -59,23 +58,23 @@ For this tutorial, I will be using four Ubuntu 22.04.2 systems with following ho
 Download Ubuntu server ISO [ubuntu-22.04.2-live-server-amd64.iso](https://releases.ubuntu.com/jammy/ubuntu-22.04.2-live-server-amd64.iso).
 
 # Create the virtual Machine on VMware ESXi/Fusion
-Create a virtual machine and start the installation. I used `Ubuntu Server (minimized)`. Customize the network connections.
+Create a virtual machine and start the installation. I used `Ubuntu Server (minimized)` with SSH server. Customize the network connections for your network.
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
 ### Use SSH to access the VM
-Use SSH to access the VM, you'll have access to copy/paste 😉
+After the initial Ubuntu setup, use SSH to access the VM, you'll have access to copy/paste 😉
 ```sh
 ssh -l <USERNAME> 192.168.13.xxx
 ```
 
 ### Customize network options (Optional)
-Edit the file `00-installer-config.yaml` to configure a static IP address:
+This should not be requited since you should have done it in the initial phase of the install. In case you need to customize it, you can edit the file `00-installer-config.yaml` to configure the network interface:
 
 ```sh
 sudo vi  /etc/netplan/00-installer-config.yaml
 ```
 
-Add the following lines (adapt to your network):
+Adapt to your network:
 
     #  /etc/netplan/00-installer-config.yaml
     version: 2
@@ -156,7 +155,6 @@ dpkg --list | grep linux-image
 ```
 
 Remove old kernels listing from the preceding step with the command (adjust the image name):
-
 ```sh
 sudo apt --purge remove linux-image-5.15.0-72-generic
 ```
@@ -169,6 +167,7 @@ sudo update-grub2
 ### Install Utilities (optional)
 Some usefull utilities that might bu usefull down the road. Take a look and feel free to add or remove:
 ```sh
+sudo apt install -y bash-completion
 sudo apt install -y iputils-tracepath iputils-ping iputils-arping
 sudo apt install -y dnsutils
 sudo apt install -y tshark
@@ -176,16 +175,15 @@ sudo apt install -y netcat
 sudo apt install -y traceroute
 sudo apt install -y vim
 sudo apt install -y jq
-sudo apt install -y bash-completion
 ```
 
-To remove a package configurations, data and all of its dependencies, you can use the following command:
+(Optional) To remove a package with its configuration, data and all of its dependencies, you can use the following command:
 ```sh
 sudo apt -y autoremove --purge <package name>
 ```
 
 ### SSH
-Generate an ECC SSH public/private key pair
+Generate an ECC SSH public/private key pair. This should be done for each user you add to the system:
 ```sh
 ssh-keygen -q -t ecdsa -N '' -f ~/.ssh/id_ecdsa <<<y >/dev/null 2>&1
 ```
@@ -200,7 +198,7 @@ ssh-copy-id -i ~/.ssh/id_ecdsa.pub 192.168.13.3x
 >**Note:** If you don't have an ECC public key, change the filename
 
 ### Disable swap space
-K8s requires that swap partition be **disabled** on master and worker node of a cluster. As of this writing, Ubuntu 22.04 with minimal install has swap space disabled by default. If this is the case, skip to the next section.
+K8s requires that swap partition be **disabled** on master and worker node of a cluster. As of this writing, Ubuntu 22.04 with minimal install has swap space disabled by default. If the case of Ubuntu 22.04, swap is disabled. You can skip to the next section if this is the case.
 
 You can check if swap is enable with the command:
 ```sh
@@ -238,6 +236,26 @@ net.ipv6.conf.lo.disable_ipv6 = 1
 EOF
 ``` 
 
+### Make iptables see the bridged traffic
+Make sure that the `br_netfilter` module is loaded or `kubeadm` will fail with the error `[ERROR FileContent--proc-sys-net-bridge-bridge-nf-call-iptables]: /proc/sys/net/bridge/bridge-nf-call-iptables does not exist`.
+
+Check if the module is loaded with this command. If it's running skip to the next section:
+```sh
+lsmod | grep br_netfilter
+```
+
+You can load it explicitly with the command:
+```sh
+sudo modprobe br_netfilter
+```
+
+Make the module load everytime the node reboots:
+```sh
+cat <<EOF | sudo tee /etc/modules-load.d/k8s.conf
+br_netfilter
+EOF
+```
+
 ### IPv4 routing
 Make sure IPv4 routing is enabled. The following command returns `1` if IP routing is enabled, else it will return `0`: 
 ```sh
@@ -248,6 +266,7 @@ If the the result is not `1`, meaning it's not enabled, you can modify the file 
 ```sh
 sudo tee /etc/sysctl.d/kubernetes.conf<<EOF
 net.ipv4.ip_forward = 1
+net.bridge.bridge-nf-call-iptables = 1
 EOF
 ```
 
@@ -260,29 +279,25 @@ sudo sysctl --system
 If you like a terminal prompt with colors, add those lines to your `~/.bashrc`. Lots of Linux distro have a red prompt for `root` and `green` for normal users. I decided to have `CYAN` for normal users to show that I'm in Kubernetes. Adjust to your preference:
 ```sh
 cat >> .bashrc <<'EOF'
-
-NORMAL="\[\e[0m\]"
-RED="\[\e[1;31m\]"
-GREEN="\[\e[1;32m\]"
-CYAN="\[\e[1;35m\]"
+# Taken from: https://robotmoon.com/bash-prompt-generator/
 if [[ $EUID = 0 ]]; then
-  PS1="$RED\u@\h [ $NORMAL\w$RED ]# $NORMAL"
+  PS1="\[\e[38;5;196m\]\u\[\e[38;5;202m\]@\[\e[38;5;208m\]\h \[\e[38;5;220m\]\w \[\033[0m\]$ "
 else
-  PS1="$CYAN\u@\h [ $NORMAL\w$CYAN ]\$ $NORMAL"
+  PS1="\[\e[38;5;39m\]\u\[\e[38;5;81m\]@\[\e[38;5;77m\]\h \[\e[38;5;226m\]\w \[\033[0m\]$ "
 fi
-unset NORMAL RED GREEN CYAN
 
 alias k='kubectl'
 EOF
 ```
 >**Note:** Make sure to surround `'EOF'` with single quotes. Failure to do so will replace variables with their value.
 
-Apply the change:
+After you apply the change, the prompt should now be Cyan:
 ```sh
 source .bashrc
 ```
 
 ### set timezone
+Adjust for your timezone. You can list the available timezones with the command `timedatectl list-timezones`:
 ```sh
 sudo timedatectl set-timezone America/Montreal
 ```
@@ -293,8 +308,8 @@ You should have a standard Ubuntu 22.04 installation 🎉
 - SSH server with public/private key
 - Latest Kernel available
 
-### Set bash auto cpmpletion
-I like auto completion:
+### Set bash auto completion
+I like bash auto completion, so let's activate it:
 ```sh
 grep -wq '^source /etc/profile.d/bash_completion.sh' ~/.bashrc || echo 'source /etc/profile.d/bash_completion.sh'>>~/.bashrc
 source .bashrc
@@ -309,82 +324,13 @@ sudo apt autoremove
 <a name="docker-ce"></a>
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
-# Install Docker-CE on Ubuntu (Optional)
-This is really optional. You don't need Docker to run K8s. For this tutorial, we're not using Docker container runtime but I like to have Docker-CE installed. This is applicable to master and worker node in a K8s cluster.
-
-Install Prerequisites:
-```sh
-sudo apt -y install apt-transport-https ca-certificates curl software-properties-common
-```
-
-Add Docker's Official GPG Key:
-```sh
-curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg
-```
-
-Add Docker Repo to Ubuntu 22.04:
-```sh
-echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
-```
-
-Refresh the package list:
-```sh
-sudo apt update
-```
-
-To install the latest up-to-date Docker release on Ubuntu, run the below command:
-```sh
-sudo apt install docker-ce
-```
-
-Check the Docker service status using the following command:
-```sh
-sudo systemctl is-active docker
-```
-
-Enabling your non-root user to run Docker commands without using `sudo` (Log out from the current terminal and log back in for the change to take effect)
-```sh
-sudo usermod -aG docker ${USER}
-```
->**Note**: Logoff and login
-
-Check Docker's version (without sudo):
-```sh
-docker version
-docker compose version
-```
-
-Verify that Docker and ContainerD are running and that there's **NO ERROR MESSAGES**:
-```sh
-sudo systemctl status docker.service
-sudo systemctl status docker.socket
-sudo systemctl status containerd.service
-```
->**Note:** Make sure there's no error for `containerd.service` as this will be our CRI for K8s
-
-If you installed `docker-ce-cli` package Docker bash completion should already be installed:
-```sh
-dpkg -L docker-ce-cli | grep completion
-```
-
-The steps above installed the following Docker components:
-
-- docker-ce: The Docker engine itself.
-- docker-ce-cli: A command line tool that lets you talk to the Docker daemon.
-- containerd.io: A container runtime that manages the container’s lifecycle.
-- docker-buildx-plugin: A CLI plugin that extends the Docker build with many new features.
-- docker-compose-plugin: A configuration management plugin to orchestrate the creation and management of Docker containers through compose files.
-
-<a name="cri-docker"></a>
-<p align="right">(<a href="#readme-top">back to top</a>)</p>
-
 # Install K8s cluster on Ubuntu 22.04 with Kubebadm (master & worker)
 Finally the fun part 😀 As stated earlier, the lab used in this guide has four servers – one K8s Master Node and three K8s Worker nodes, where containerized workloads will run. Additional master and worker nodes can be added to suit your desired environment load requirements. For HA, three control plane nodes are required (for a cluster with `n` members, quorum is `(n/2)+1`).
 
 ## This needs to be done on both the Master(s) and the Worker(s) nodes of a K8s cluster
 Install packages dependency. It should already be installed from the Docker section:
 ```sh
-sudo apt install apt-transport-https ca-certificates curl
+sudo apt install apt-transport-https ca-certificates
 ```
 
 Download Google Cloud Public (GCP) signing key using curl command:
@@ -435,14 +381,41 @@ source ~/.bashrc
 <a name="k8s-master"></a>
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
-## Install Container Runtime (Master and Worker nodes)
-To run containers in Pods, Kubernetes uses a Container Runtime Interface (CRI). The supported CRI are:
+# Install `containerd` on Ubuntu (Master and Worker nodes)
+To run containers in Pods, Kubernetes needs a Container Runtime Engine. That CRE must be compliant with K8s Container Runtime Interface (CRI). CRE runs containers on a host operating system and is responsible for loading container images from a repository, monitoring local system resources, isolating system resources for use of a container, and managing container lifecycle. 
+
+The supported CRI with K8s are:
 
 - Docker
 - CRI-O
-- Containerd
+- **Containerd**
 
-I've decided to use **Containerd**, since even Docker uses it. The good news is since we installed Docker, we already have installed **Containerd** but we need to adjust the configuration for K8s.
+For this tutorial, we will install [containerd](https://containerd.io/) as our CRE. Containerd is officially a graduated project within the Cloud Native Computing Foundation as of 2019 🍾🎉🥳🎁
+
+install packages to allow apt to use a repository over HTTPS:
+```sh
+sudo apt -y install apt-transport-https ca-certificates
+```
+
+Add Docker's Official GPG Key:
+```sh
+curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg
+```
+
+Add Docker Repo to Ubuntu 22.04:
+```sh
+echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+```
+
+Refresh the package list and make sure there's no error regarding the `gpg key`:
+```sh
+sudo apt update
+```
+
+To install the latest up-to-date Docker release on Ubuntu, run the below command:
+```sh
+sudo apt install containerd.io
+```
 
 Verify that containerd is indeed installed:
 ```sh
@@ -493,8 +466,8 @@ Enable `crictl` autocompletion for Bash:
 sudo crictl completion | sudo tee /etc/bash_completion.d/crictl > /dev/null
 source ~/.bashrc
 ```
-
-By default each time you run the command `crictl` you'll need to prefix it with `sudo`. You can change the group permission of the API by:
+### Use `crictl` without sudo
+By default each time you run the command `crictl` you'll need to prefix it with `sudo`. You can change the group permission of the API socket by:
 - adding a new group like `crictl`
 - add your user(s) to the group `crictl`
 - modify the file `/etc/containerd/config.toml` to change the group owner of `/var/run/containerd/containerd.sock`
@@ -525,18 +498,72 @@ The file `/run/containerd/containerd.sock` should be owned by the group `crictl`
 srw-rw---- 1 root crictl 0 May 23 08:31 /run/containerd/containerd.sock
 ```
 
+Logoff and log back in for the changes to take effect and test the command without `sudo`:
+```sh
+crictl version
+```
+
+The output should look like this:
+
+    Version:  0.1.0
+    RuntimeName:  containerd
+    RuntimeVersion:  1.6.21
+    RuntimeApiVersion:  v1
+
+### Install `nerdctl` (DOESN'T WORK !!!)
+ContaiNERD CTL is a command-line tool for managing containers for the `containerd` Container Runtime. It's compatible with Docker CLI for Docker and has the same UI/UX as the "docker" command. 
+
+Get the latest version and download `nerdctl` binary file. Extract it to `/usr/local/bin`:
+
+1. Get the latest version of `nerdctl`:
+```sh
+VER=$(curl -s https://api.github.com/repos/containerd/nerdctl/releases/latest | grep tag_name | cut -d '"' -f 4|sed 's/v//g')
+echo $VER
+```
+
+2. Download and extract the archive file from Github nerdctl releases page
+```sh
+curl -LO https://github.com/containerd/nerdctl/releases/download/v${VER}/nerdctl-${VER}-linux-amd64.tar.gz
+```
+ 
+3. Move `nerdctl` binary package to `/usr/local/bin` directory with the command:
+```sh
+# mkdir nerdctl-${VER}-linux-amd64
+sudo tar Cxzvf /usr/local/bin nerdctl-${VER}-linux-amd64.tar.gz
+```
+
+```sh
+echo "kernel.unprivileged_userns_clone = 1" | sudo tee /etc/sysctl.d/90-nerdctl-rootless.conf > /dev/null
+sudo sysctl --system
+sudo sysctl -p /etc/sysctl.d/90-nerdctl-rootless.conf
+```
+
+containerd-rootless-setuptool.sh install
+ 
+4. Cleanup
+```sh
+rm -f nerdctl-full-${VER}-linux-amd64.tar.gz
+unset VER
+```
+
 ***** **STOP** *****
 
-Congratulations! You have a fully functional Linux Ubuntu 22.04 ready for Kubernetes 🎉 You can `clone` the VM so you won't have to go over the preceding process again 😀
+Congratulations! You have a fully functional Linux Ubuntu 22.04 ready for Kubernetes 🎉 You can `clone` the VM so you won't have to go over the preceding steps again 😀
 
-If you're configuration a worker node skip the next section and go to <a href="#k8s-worker">Configure K8s worker nodes</a>
+If you're configuration a worker node skip to <a href="#k8s-worker">Configure K8s worker nodes</a>. If you're doing the K8s master node, just continue with <a href="#k8s-master">Configure a K8s master node</a>.
+
+<a name="k8s-master"></a>
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
 
 # Configure a K8s master node
-This should only be done on the **master node** of a K8s cluster and **ONE** time only. Initialize the master node with the command:
+This should only be done on the **master node** of a K8s cluster and **ONE** time only.
+
+## Initialize K8s Master node
+Initialize the master node with the command:
 ```sh
 sudo kubeadm init --cri-socket unix:///var/run/containerd/containerd.sock --pod-network-cidr=10.255.0.0/16 --apiserver-advertise-address 192.168.13.30
 ```
->**Note:** The `--apiserver-advertise-address` argument is optional if you have only one network interface.
+>**Note:** The `--apiserver-advertise-address` argument is optional if you have only one network interface. Please be patient. It will take some time to init the master node.
 
 This should be the result of the `kubeadm init` command. **Make a copy**:
 
@@ -636,7 +663,7 @@ NAME                     STATUS     ROLES           AGE   VERSION   INTERNAL-IP 
 k8smaster1.isociel.com   NotReady   control-plane   98s   v1.27.2   192.168.13.30   <none>        Ubuntu 22.04.2 LTS   6.3.3-060303-generic   containerd://1.6.21
 ```
 
-The status is `NotReady` because we didn't install a CNI yet 😉
+>**Note:** the “NotReady” status. This is because we have not yet installed a CNI plugin to provide networking functionnality. This is normal and to be expected 😉
 
 Check the status of `kubelet`:
 ```sh
@@ -645,11 +672,55 @@ sudo systemctl status kubelet
 
 >The only error message you'll get is `"Container runtime network not ready" networkReady="NetworkReady=false reason:NetworkPluginNotReady`
 
-Congratulations! You have a fully functional Kubernetes cluster with just one Master node 🎉
-
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
-### Token and CA certificate hash (Optional)
+## NFS Server
+There's many Pods that requires persistent volume. Let's install an NFS server on the master node and share mount points.
+
+Install NFS server:
+```sh
+sudo apt install nfs-kernel-server
+```
+
+Start the service:
+```sh
+sudo systemctl start nfs-kernel-server.service
+sudo systemctl enable nfs-kernel-server.service
+```
+
+Create the mount point directory:
+```sh
+sudo mkdir /nfs-data
+```
+
+Change the permissions and ownership to match the following (Be sure that you know what you are doing):
+```sh
+sudo chown -R nobody: /nfs-data/
+sudo chmod -R 777 /nfs-data/
+```
+
+Create the file exports for NFS:
+```sh
+cat << EOF | sudo tee -a /etc/exports
+/nfs-data 192.168.13.0/24(rw,no_subtree_check,no_root_squash)
+EOF
+```
+
+Export it to the client(s):
+```sh
+sudo exportfs -arv
+```
+
+>**Note:** Remember to re-export your shares on the server with exportfs -arv if you made changes! The NFS server won’t pick them up automatically. Display your currently running exports with `exportfs -v`.  
+
+Verify the NFS version (you can see this information in column two):
+```sh
+rpcinfo -p | grep nfs
+```
+
+Congratulations! You have a fully functional Kubernetes cluster ... with just one Master node 😂
+
+## Token and CA certificate hash (Optional)
 This section is to get the token and certificate hash if you forgot to copy the output of `kubeadm init ...` command from the preceding step or if you wait more than 24 hours to add a worker node.
 You can retreive the token by running the following command on the control-plane node. The token is only valid for 24 hours. It might be better to generate a new token:
 ```sh
@@ -664,7 +735,7 @@ openssl x509 -pubkey -in /etc/kubernetes/pki/ca.crt | openssl rsa -pubin -outfor
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 <a name="k8s-worker"></a>
 
-## Configure K8s worker nodes
+# Configure K8s worker nodes
 This should be done on **all** worker node(s) of a K8s cluster and **ONLY** on the worker nodes. If you need three worker nodes, then repeat this section three times.
 
 Join each of the worker node to the cluster with the command:
@@ -704,10 +775,19 @@ You should see something similar after running the command on all your `worker n
     k8sworker2.isociel.com   NotReady   <none>          61s     v1.27.2   192.168.13.36   <none>        Ubuntu 22.04.2 LTS   6.3.3-060303-generic   containerd://1.6.21
     k8sworker3.isociel.com   NotReady   <none>          56s     v1.27.2   192.168.13.37   <none>        Ubuntu 22.04.2 LTS   6.3.3-060303-generic   containerd://1.6.21
 
-
 >Repeat the steps above if you want more worker node.
 
-### Add Role (Optional)
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
+
+## Install NFS client
+You need to install NFS client of each worker node for them to access the NFS server.
+
+Install NFS client:
+```sh
+sudo apt install nfs-common
+```
+
+## Add Role (Optional)
 As you see above, the role for worker node is ­­`<none>`, if you want to change it, you can add a label. The most important part in the label is the `Key`. The following two commands are executed on the **control plane**, not the worker node:
 ```sh
 kubectl label node k8sworker1.isociel.com node-role.kubernetes.io/worker=myworker
@@ -722,79 +802,34 @@ kubectl label node <hostname> node-role.kubernetes.io/worker-
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
-## Install Cilium (Master node ONLY)
-We're going to use Cilium as our CNI networking solution. Cilium is an incubating CNCF project that implements a wide range of networking, security and observability features, much of it through the Linux kernel eBPF facility. This makes Cilium fast and resource efficient. We'll use Cilium's' command line tool to install the CNI components.
-1.	Download
-2.	Extract
-3.	Install and test the Cilium CLI:
+# Install Helm
+[See this page to install Helm](https://github.com/ddella/Debian11-K8s/blob/main/helm.md)
 
->**Note:** The installation of Cilium or any other CNI is done on the **control plane** only.
+# Install Cilium (Master node ONLY)
+We're going to use [Cilium](https://cilium.io/) as our CNI networking solution. Cilium is an incubating CNCF project that implements a wide range of networking, security and observability features, much of it through the Linux kernel eBPF facility. This makes Cilium fast and resource efficient. We'll use Helm to install Cilium and active the metrics for Prometheus and Grafana.
 
-This is a quick and dirty installation. I'm not checking the hash of the downloaded file 😱
-
-Download the package:
+Setup Helm repository:
 ```sh
-wget https://github.com/cilium/cilium-cli/releases/latest/download/cilium-linux-amd64.tar.gz
+helm repo add cilium https://helm.cilium.io/
 ```
 
-Extract it:
+Deploy Cilium via Helm as follows to enable all metrics:
 ```sh
-sudo tar xzvfC cilium-linux-amd64.tar.gz /usr/local/bin
+helm install cilium cilium/cilium \
+--namespace kube-system \
+--set prometheus.enabled=true \
+--set operator.prometheus.enabled=true \
+--set hubble.enabled=true \
+--set hubble.metrics.enableOpenMetrics=true \
+--set hubble.metrics.enabled="{dns,drop,tcp,flow,port-distribution,icmp,httpV2:exemplars=true;labelsContext=source_ip\,source_namespace\,source_workload\,destination_ip\,destination_namespace\,destination_workload\,traffic_direction}"
 ```
 
-Install cilium CNI as a normal user and be patient:
+Monitor the installation process with the command:
 ```sh
-cilium install
-```
->**Note:** If the install fail, run it again 😂 I'm serious
-
-The output should look like this:
-
-    ℹ️  Using Cilium version 1.13.2
-    🔮 Auto-detected cluster name: kubernetes
-    🔮 Auto-detected datapath mode: tunnel
-    🔮 Auto-detected kube-proxy has been installed
-    ℹ️  helm template --namespace kube-system cilium cilium/cilium --version 1.13.2 --set cluster.id=0,cluster.name=kubernetes,encryption.nodeEncryption=false,kubeProxyReplacement=disabled,operator.replicas=1,serviceAccounts.cilium.name=cilium,serviceAccounts.operator.name=cilium-operator,tunnel=vxlan
-    ℹ️  Storing helm values file in kube-system/cilium-cli-helm-values Secret
-    🔑 Created CA in secret cilium-ca
-    🔑 Generating certificates for Hubble...
-    🚀 Creating Service accounts...
-    🚀 Creating Cluster roles...
-    🚀 Creating ConfigMap for Cilium version 1.13.2...
-    🚀 Creating Agent DaemonSet...
-    🚀 Creating Operator Deployment...
-    ⌛ Waiting for Cilium to be installed and ready...
-    ✅ Cilium was successfully installed! Run 'cilium status' to view installation health
-
-
-To validate that Cilium has been properly installed, you can run the command (be patient after the preceding command finishes. It might take 1-2 minutes for the status to show `Ok`):
-```sh
-cilium status
+cilium status --wait
 ```
 
-The ouput should look like this. Initially `Hubble Relay` is disabled:
-
-        /¯¯\
-    /¯¯\__/¯¯\    Cilium:          OK
-    \__/¯¯\__/    Operator:        OK
-    /¯¯\__/¯¯\    Hubble Relay:    disabled
-    \__/¯¯\__/    ClusterMesh:     disabled
-        \__/
-
-    DaemonSet         cilium             Desired: 4, Ready: 4/4, Available: 4/4
-    Deployment        cilium-operator    Desired: 1, Ready: 1/1, Available: 1/1
-    Containers:       cilium             Running: 4
-                    cilium-operator    Running: 1
-    Cluster Pods:     2/2 managed by Cilium
-    Image versions    cilium             quay.io/cilium/cilium:v1.13.2@sha256:85708b11d45647c35b9288e0de0706d24a5ce8a378166cadc700f756cc1a38d6: 4
-                    cilium-operator    quay.io/cilium/operator-generic:v1.13.2@sha256:a1982c0a22297aaac3563e428c330e17668305a41865a842dec53d241c5490ab: 1
-
-Run the following command to validate that your cluster has proper network connectivity:
-```sh
-cilium connectivity test
-```
-
-Check that the master and worker nodes are ready:
+Check that the all the nodes in the K8s cluster are all in ready state:
 ```sh
 kubectl get nodes -o=wide
 ```
@@ -805,6 +840,11 @@ kubectl get nodes -o=wide
     k8sworker2.isociel.com   Ready    worker          11m   v1.27.2   192.168.13.36   <none>        Ubuntu 22.04.2 LTS   6.3.3-060303-generic   containerd://1.6.21
     k8sworker3.isociel.com   Ready    worker          11m   v1.27.2   192.168.13.37   <none>        Ubuntu 22.04.2 LTS   6.3.3-060303-generic   containerd://1.6.21
 
+
+Run the following command to validate that your cluster has proper network connectivity:
+```sh
+cilium connectivity test
+```
 
 Check the Pods for all namespace. You will see the Cilium Pods.
 ```sh
@@ -839,9 +879,18 @@ sudo systemctl status kubelet.service
 kubectl version --output=yaml
 ```
 
-You should have a fully functionnal Kubernetes Cluster with one master node and three worker nodes 🥳 🎉
+You should have a fully functionnal Kubernetes Cluster with one master node and three worker nodes 🥳🎉. The rest is optional.
 
-# Create a username to administor K8s
+# Install Hubble
+Hubble is the observability layer of Cilium and can be used to obtain cluster-wide visibility into the network and security layer of your Kubernetes cluster.
+
+See this page [Hubble](hubble.md)
+
+# Install Prometheus and Grafana
+See this page [Hubble](prometheus-grafana.md)
+
+
+# Create a username to administor K8s (Optional)
 If you need to create another username to administor K8s, follow thoses steps
 
 ## Create the user
@@ -868,9 +917,6 @@ ssh-keygen -q -t ecdsa -N '' -f ~/.ssh/id_ecdsa <<<y >/dev/null 2>&1
 ```sh
 ssh-copy-id -i ~/.ssh/id_ecdsa.pub 192.168.13.3x
 ```
-
-# Install Helm
-[See this page to install Helm](https://github.com/ddella/Debian11-K8s/blob/main/helm.md)
 
 # About
 

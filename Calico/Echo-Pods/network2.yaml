@@ -1,0 +1,24 @@
+# Calico GlobalNetworkPolicy allows you to write policy that is enforced before this
+# translation takes place. i.e. Policy that sees the original node port as the
+# destination, not the backing pod that is being load balanced to as the destination.
+#
+# This policy block access to the NodePort service. External client won't be able to access
+# the backend Pods.
+apiVersion: projectcalico.org/v3
+kind: GlobalNetworkPolicy
+metadata:
+  name: nodeport-policy
+spec:
+  order: 100
+  selector: has(kubernetes.io/hostname)
+  applyOnForward: true
+  preDNAT: true
+  ingress:
+  - action: Deny
+    protocol: TCP
+    destination:
+      ports: ["30000:32767"]
+  - action: Deny
+    protocol: UDP
+    destination:
+      ports: ["30000:32767"]

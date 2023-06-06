@@ -23,6 +23,17 @@ curl -LO https://raw.githubusercontent.com/projectcalico/calico/v${VER}/manifest
 
 5. You need to install Tigera Calico custom resource definitions but before make sure the `cidr` value matches the one you passed to `kubeadm init --pod-network-cidr=10.255.0.0/16 ...` when you configured you K8s cluster. See below my `custom-resources.yaml` file that I edited:
 
+To retreive the `cidr` value you passed to `kubeadm init ...` when you configured you K8s cluster, type the command:
+```sh
+kubectl cluster-info dump | grep -m 1 cluster-cidr
+```
+
+You should see the following output (your milage may vary 😀). That's the value that you need to edit in the file `custom-resources.yaml`:
+```
+"--cluster-cidr=10.255.0.0/16",
+```
+
+File `custom-resources.yaml`
 ```
 [...]
     ipPools:
@@ -30,16 +41,6 @@ curl -LO https://raw.githubusercontent.com/projectcalico/calico/v${VER}/manifest
       # cidr: 192.168.0.0/16
       cidr: 10.255.0.0/16
 [...]
-```
-
-To retreive the, type the command:
-```sh
-kubectl cluster-info dump | grep -m 1 cluster-cidr
-```
-
-You should see the following output (your milage may vary 😀):
-```
-"--cluster-cidr=10.255.0.0/16",
 ```
 
 Create the custom resource definitions:
@@ -63,7 +64,9 @@ tigera-operator-58f95869d6-d6m2f   1/1     Running   0          30m
 watch kubectl get pods -n calico-system 
 ```
 
-You should see the following output:
+>Be patient here, K8s needs to downloads the images on Internet. It took me 10 minutes to have all the Pods running. You can use Ctrl+C to exit from the watch command once all of the Calico pods have come up.
+
+You should see the following output when everything in downloaded and running:
 ```
 NAME                                       READY   STATUS    RESTARTS   AGE
 calico-kube-controllers-7b89497fbf-pgqcd   1/1     Running   0          10m
@@ -119,7 +122,7 @@ Now we can see that our Kubernetes nodes have a status of `Ready` and are operat
 [Calico API](https://docs.tigera.io/calico/latest/reference/installation/api)
 
 
-# Install `calicoctl` as a binary and as a kubectl plugin on a single host
+# Install `calicoctl` as a binary and as a `kubectl` plugin on a single host
 Use the following command to download the `calicoctl` binary file:
 ```sh
 curl -L https://github.com/projectcalico/calico/releases/latest/download/calicoctl-linux-amd64 -o calicoctl
@@ -132,7 +135,7 @@ sudo mv calicoctl /usr/local/bin
 sudo chown root:adm /usr/local/bin/calicoctl
 ```
 
-To be able to use it as a kubectl plugin, just symlink it to the binary you just installed:
+To be able to use it as a `kubectl` plugin, just symlink it to the binary you just installed:
 ```sh
 sudo ln -s /usr/local/bin/calicoctl /usr/local/bin/kubectl-calico
 sudo chown root:adm /usr/local/bin/kubectl-calico

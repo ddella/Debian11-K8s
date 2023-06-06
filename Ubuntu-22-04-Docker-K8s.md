@@ -881,6 +881,66 @@ kubectl version --output=yaml
 
 You should have a fully functionnal Kubernetes Cluster with one master node and three worker nodes 🥳🎉. The rest is optional.
 
+# Uninstall Cilium (just in case 😀)
+If you ever want to uninstall Cilium completely, use the commands below:
+```sh
+helm delete cilium --namespace kube-system
+```
+
+You shouldn't see any more Cilium Pods in the namespace `kube-system`
+```sh
+kubectl get all -n kube-system
+```
+
+All your K8s nodes will be in status `NotReady`:
+```sh
+kubectl get nodes
+```
+
+Output should look like this:
+```
+NAME                     STATUS     ROLES           AGE     VERSION
+k8smaster1.isociel.com   NotReady   control-plane   6d19h   v1.27.2
+k8sworker1.isociel.com   NotReady   worker          6d19h   v1.27.2
+k8sworker2.isociel.com   NotReady   worker          6d19h   v1.27.2
+k8sworker3.isociel.com   NotReady   worker          6d19h   v1.27.2
+```
+
+If you want to remove the images, go on each node (master and worker) and:
+1. List the image(s)
+
+List the local images:
+```sh
+crictl images ls
+```
+
+The ouput should look like this:
+```
+IMAGE                                     TAG                 IMAGE ID            SIZE
+...
+quay.io/cilium/alpine-curl                               <none>              678139ecf284d       7.67MB
+quay.io/cilium/cilium                                    <none>              4cfc81d8cbe39       174MB
+quay.io/cilium/cilium                                    <none>              2480b5e5b4799       174MB
+quay.io/cilium/hubble-relay                              <none>              33706bf42661c       15.6MB
+quay.io/cilium/hubble-ui-backend                         <none>              0631ce248fa69       16.6MB
+quay.io/cilium/hubble-ui                                 <none>              b555a2c7b3de8       19.2MB
+quay.io/cilium/json-mock                                 <none>              6d9eed9df4c1d       100MB
+quay.io/cilium/operator-generic                          <none>              5e08056ff5956       22.2MB
+...
+```
+
+2. Delete the Cilium images one by one with the command:
+```sh
+crictl rmi <IMAGE ID>
+```
+
+Or delete all the images at once with the command (use with caution!):
+```sh
+crictl image | grep cilium | awk '{ print $3 }' | xargs crictl rmi
+```
+
+>It needs to be done on all the nodes
+
 # Install Hubble
 Hubble is the observability layer of Cilium and can be used to obtain cluster-wide visibility into the network and security layer of your Kubernetes cluster.
 

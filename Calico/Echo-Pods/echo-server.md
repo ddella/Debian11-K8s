@@ -1,15 +1,23 @@
 # Echo Server
 This created 3 Pods acting as a TCP and UDP echo server and 1 Pod acting as a client. The default behavior for the server Pods are to listen on TCP/1234 and UDP/5678 with 2 containers per Pod. You can change the port number in the manifest file under each Pod.
 
+It creates two services:
+- NodePort service `TCP` listening on port `31234`
+- NodePort service `UDP` listening on port `31678`
+
+All the Pods and Services are created in namespace `echo-server`.
+
 When the server receives a connection, it sends:
 - the date
 - it's IP address and TCP listening port
 - the client's IP address and TCP sending port
 - and it will echo back everything sent to it
 
-    Sun Jun 4 18:37:24 UTC 2023
-    Server: 10.255.18.158:1234
-    Client: 10.255.153.116:35953
+```
+Sun Jun 4 18:37:24 UTC 2023
+Server: 10.255.18.158:1234
+Client: 10.255.153.116:35953
+```
 
 We are using K8s `headless service` to benefit from DNS resolution for each Pod.
 
@@ -53,49 +61,87 @@ Test1
 ## (Optional) Watch the creation of the Pods, from another terminal
 Watch the Pods being created 😀
 
-    kubectl get pods --watch --show-labels
+```sh
+kubectl get pods --watch --show-labels
+```
 
 ## Create the Pods
 Creates 3 server Pods and 1 client Pod
 
-    kubectl create -f echo-server.yaml
+```sh
+kubectl create -f echo-server.yaml
+```
+
+>**Note:** The `restartPolicy` is set to `Never` so if the cluster is rebooted, the Pods won't start 😉
 
 ## Get the list of Pods
 Check that the Pods were created successfuly and that they are running. You should have a Pod on each node for the servers and one client Pod somewhere. Each server Pod will have 2 containers:
 
-    kubectl get pods -n echo-server -o=wide
+```sh
+kubectl get pods -n echo-server -o=wide
+```
 
 ## Check the service
 After creating the service, we can inspect it. We see it has no cluster IP and its endpoints include the pods matching its pod selector.
 
-    kubectl get svc -n echo-server
+```sh
+kubectl get svc -n echo-server
+```
+
+The ouput should look like this:
+```
+NAME              TYPE        CLUSTER-IP       EXTERNAL-IP   PORT(S)          AGE
+echo-server-tcp   NodePort    10.102.164.166   <none>        1234:31234/TCP   17m
+echo-server-udp   NodePort    10.105.229.64    <none>        5678:31678/UDP   17m
+headless          ClusterIP   None             <none>        <none>           17m
+```
+
+In my lab I activated BGP with [Calico](https://www.tigera.io/project-calico/) and I had a Ubuntu with [FRRouting](https://frrouting.org/), so I could use the `CLUSTER-IP` directly and `Kube Proxy` did the load balancing.
+
+Example of a UDP packet on my Ubuntu BGP router:
+```
+daniel@bgp ~ $ echo -n "hello1" | nc -w1 -u 10.105.229.64 5678
+Sat Jun 10 21:06:31 UTC 2023
+Server: 10.255.18.143:5678
+Client: 192.168.13.35:63690
+```
 
 ## DNS lookup for headless service
 Let's do the DNS lookup from the newly created pod:
 
-    kubectl exec echo-client1 -n echo-server -- nslookup headless.echo-server.svc.cluster.local
+```sh
+kubectl exec echo-client1 -n echo-server -- nslookup headless.echo-server.svc.cluster.local
+```
 
 ## Jump inside Pod
-Jump inside the client Pod.
+If you don't have BGP router, you can jump inside the client Pod and do the tests using the DNS name of the headless service.
 
-    kubectl exec -it echo-client1 -n echo-server -- /bin/sh
+```sh
+kubectl exec -it echo-client1 -n echo-server -- /bin/sh
+```
 
 From inside the Pod, you can try to access any of the server's Pod with it's name or IP address.
 The name must have the `.headless` subdomain appended.
 
 To test a TCP connection:
 
-    nc server1.headless 1234
-    nc server2.headless 1234
-    nc server3.headless 1234
+```
+nc server1.headless 1234
+nc server2.headless 1234
+nc server3.headless 1234
+```
 
 To test a UDP connection:
 
-    nc -u server1.headless 5678
-    nc -u server2.headless 5678
-    nc -u server3.headless 5678
+```
+nc -u server1.headless 5678
+nc -u server2.headless 5678
+nc -u server3.headless 5678
+```
 
 ## Cleanup
 Delete the namespace, the headless service and all the Pods:
 
-    kubectl delete -f echo-server.yaml
+```sh
+kubectl delete -f echo-server.yaml
+```

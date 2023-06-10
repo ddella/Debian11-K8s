@@ -91,7 +91,7 @@ metadata:
   name: echo-client1
   namespace: echo-server
   labels:
-    headless: echo
+    # headless: echo
     name: echo-client1
     app: echo-client
     color: black
@@ -108,16 +108,33 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: my-nodeport
+  name: echo-server-tcp
   namespace: echo-server
   labels:
-    app: my-nodeport
+    app: echo-server-tcp
 spec:
   type: NodePort
   ports:
   - port: 1234
     nodePort: 31234
     name: echo
+  selector:
+    app: echo-server
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: echo-server-udp
+  namespace: echo-server
+  labels:
+    app: echo-server-udp
+spec:
+  type: NodePort
+  ports:
+  - port: 5678
+    nodePort: 31678
+    name: echo
+    protocol: UDP
   selector:
     app: echo-server
 ---

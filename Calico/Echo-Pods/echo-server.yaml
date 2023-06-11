@@ -1,8 +1,10 @@
+# Create a namespace
 apiVersion: v1
 kind: Namespace
 metadata:
   name: echo-server
 ---
+# Create a headless service
 apiVersion: v1
 kind: Service
 metadata:
@@ -13,6 +15,7 @@ spec:
     headless: echo
   clusterIP: None
 ---
+# Create a Pod
 apiVersion: v1
 kind: Pod
 metadata:
@@ -37,6 +40,7 @@ spec:
     args: ['-c', 'apk add socat; socat UDP-LISTEN:5678,reuseaddr,fork SYSTEM:"echo \$\(date\); echo Server\: \$SOCAT_SOCKADDR\:\$SOCAT_SOCKPORT; echo Client\: \$SOCAT_PEERADDR\:\$SOCAT_PEERPORT; echo; cat",nofork']
   restartPolicy: Never
 ---
+# Create a Pod
 apiVersion: v1
 kind: Pod
 metadata:
@@ -61,6 +65,7 @@ spec:
     args: ['-c', 'apk add socat; socat UDP-LISTEN:5678,reuseaddr,fork SYSTEM:"echo \$\(date\); echo Server\: \$SOCAT_SOCKADDR\:\$SOCAT_SOCKPORT; echo Client\: \$SOCAT_PEERADDR\:\$SOCAT_PEERPORT; echo; cat",nofork']
   restartPolicy: Never
 ---
+# Create a Pod
 apiVersion: v1
 kind: Pod
 metadata:
@@ -85,6 +90,7 @@ spec:
     args: ['-c', 'apk add socat; socat UDP-LISTEN:5678,reuseaddr,fork SYSTEM:"echo \$\(date\); echo Server\: \$SOCAT_SOCKADDR\:\$SOCAT_SOCKPORT; echo Client\: \$SOCAT_PEERADDR\:\$SOCAT_PEERPORT; echo; cat",nofork']
   restartPolicy: Never
 ---
+# Create a Pod
 apiVersion: v1
 kind: Pod
 metadata:
@@ -105,22 +111,69 @@ spec:
     args: ['-c', 'tail -f /dev/null']
   restartPolicy: Never
 ---
+# Create a NodePort service
 apiVersion: v1
 kind: Service
 metadata:
-  name: echo-server-tcp
+  name: echo-np-tcp
   namespace: echo-server
   labels:
-    app: echo-server-tcp
+    app: echo-np-tcp
+    service: NodePort
 spec:
   type: NodePort
+  externalTrafficPolicy: Local
   ports:
   - port: 1234
     nodePort: 31234
+    protocol: TCP
     name: echo
   selector:
     app: echo-server
 ---
+# Create a LoadBalancer service
+apiVersion: v1
+kind: Service
+metadata:
+  name: echo-lb-tcp
+  namespace: echo-server
+  labels:
+    app: echo-lb-tcp
+    service: LoadBalancer
+spec:
+  type: LoadBalancer
+  externalTrafficPolicy: Local
+  ports:
+  - port: 1234
+    targetPort: 1234
+    protocol: TCP
+    name: echo
+  externalIPs:
+  - 2.2.2.2 # (any IP you choose)
+  selector:
+    app: echo-server
+---
+# Create a ClusterIP service
+apiVersion: v1
+kind: Service
+metadata:
+  name: echo-ci-tcp
+  namespace: echo-server
+  labels:
+    app: echo-ci-tcp
+    service: ClusterIP
+spec:
+  type: ClusterIP
+  # externalTrafficPolicy: Local
+  ports:
+  - port: 1234
+    targetPort: 1234
+    protocol: TCP
+    name: echo
+  selector:
+    app: echo-server
+---
+# Create a NodePort service (for UDP)
 apiVersion: v1
 kind: Service
 metadata:

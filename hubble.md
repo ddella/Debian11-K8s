@@ -108,7 +108,8 @@ Results:
 
 You can also query the flow API and look for flows:
 ```sh
-hubble --server localhost:54245 observe
+hubble observe --server localhost:54245
+hubble observe --server localhost:54245 --verdict DROPPED
 ```
 
 ## Open the Hubble UI

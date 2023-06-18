@@ -40,6 +40,18 @@ IPv6 BGP status
 No IPv6 peers found.
 ```
 
+## 
+Check to see if you have a default BGPConfiguration:
+```sh
+calicoctl get bgpconfig default
+```
+
+The ouput should look like this:
+```
+NAME      LOGSEVERITY   MESHENABLED   ASNUMBER   
+default   Info          true          65001      
+```
+
 ## Check Calico IPAM allocations statistics
 Let’s also take a quick look at the IP allocation stats from Calico-IPAM, by running the following command:
 ```sh
@@ -97,8 +109,8 @@ spec:
   serviceClusterIPs:
     - cidr: 10.96.0.0/12
   serviceExternalIPs:
-    - cidr: 104.244.42.129/32
-    - cidr: 172.217.3.0/24
+    - cidr: 2.2.2.2/32
+    - cidr: 172.31.255.0/24
   bindMode: NodeIP
   communities:
   - name: bgp-cluster-community
@@ -204,13 +216,20 @@ This is my configuration for [FRRouting](https://frrouting.org/). I only configu
 router bgp 65000
  neighbor 192.168.13.30 remote-as 65001
  neighbor 192.168.13.35 remote-as 65001
+ neighbor 192.168.13.36 remote-as 65001
+ neighbor 192.168.13.37 remote-as 65001
  !
  address-family ipv4 unicast
   network 5.5.5.5/32
+  neighbor 192.168.13.30 soft-reconfiguration inbound
   neighbor 192.168.13.30 prefix-list INPUTALL in
   neighbor 192.168.13.30 prefix-list OUTPUTALL out
   neighbor 192.168.13.35 prefix-list INPUTALL in
   neighbor 192.168.13.35 prefix-list OUTPUTALL out
+  neighbor 192.168.13.36 prefix-list INPUTALL in
+  neighbor 192.168.13.36 prefix-list OUTPUTALL out
+  neighbor 192.168.13.37 prefix-list INPUTALL in
+  neighbor 192.168.13.37 prefix-list OUTPUTALL out
  exit-address-family
 exit
 !
@@ -227,16 +246,16 @@ sh ip bgp 10.96.0.0/12 bestpath
 
 You should see the following output:
 ```
-BGP routing table entry for 10.96.0.0/12, version 67
-Paths: (8 available, best #8, table default)
+BGP routing table entry for 10.96.0.0/12, version 8
+Paths: (16 available, best #12, table default)
   Advertised to non peer-group peers:
-  192.168.13.30 192.168.13.35
+  192.168.13.30 192.168.13.35 192.168.13.36 192.168.13.37
   65001
-    192.168.13.35 from 192.168.13.35 (192.168.13.35)
+    192.168.13.30 from 192.168.13.30 (192.168.13.30)
       Origin IGP, valid, external, multipath, best (Older Path)
       Community: 65001:100 65001:123 65001:456
       AddPath ID: RX 2, TX-All 0 TX-Best-Per-AS 0
-      Last update: Sat Jun 10 13:52:20 2023
+      Last update: Sun Jun 11 11:35:04 2023
 ```
 
 ## ASA configuration
@@ -269,6 +288,10 @@ You should see the following output:
 ```
 5.5.5.5 via 192.168.13.39 dev ens33 proto bird 
 ```
+
+# External traffic policy
+Services must be configured with the correct service mode (“Cluster” or “Local”) for your implementation. For `externalTrafficPolicy: Local`, the service must be type `LoadBalancer` or `NodePort`. This creates or not `SNAT` on the client request.
+
 
 # Reference
 [BGP configuration](https://docs.tigera.io/calico/latest/reference/resources/bgpconfig)

@@ -1,0 +1,22 @@
+# kubectl create -f deploy-website.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nwebsiteginx-deployment
+  labels:
+    app: website
+spec:
+  replicas: 4
+  selector:
+    matchLabels:
+      app: website
+  template:
+    metadata:
+      labels:
+        app: website
+    spec:
+      containers:
+      - name: website
+        image: php8_nginx:3.17.3
+        ports:
+        - containerPort: 80

@@ -1,0 +1,33 @@
+# This K8s deployment creates 3 Nginx Pods and
+# mount an NFS volume into "/usr/share/nginx/html" of each Pod to
+# serve a simple web page.
+#
+# kubectl apply --validate=true --dry-run=client --filename=nfs-web.yaml
+#
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nfs-web
+spec:
+  replicas: 3
+  template:
+    metadata:
+      labels:
+        role: web-frontend
+    spec:
+      containers:
+      - name: nginx-container
+        image: nginx
+        ports:
+          - name: web
+            containerPort: 80
+        volumeMounts:
+            # name must match the volume name below
+            - name: nfs
+              mountPath: "/usr/share/nginx/html"
+      volumes:
+      - name: nfs
+        nfs:
+          server: debian1.example.com
+          path: /data
+          readOnly: true

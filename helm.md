@@ -1,7 +1,5 @@
-# Helm
-Helm is a Kubernetes Package Manager. Helm is a tool for managing Charts. Charts are packages of pre-configured Kubernetes resources.
-
-Helm is a tool that streamlines installing and managing Kubernetes applications. Think of it like apt/yum/homebrew for Kubernetes.
+# Helm Charts
+Helm is a Kubernetes Package Manager for managing Charts. Charts are packages of pre-configured Kubernetes resources. Helm is a tool that streamlines installing and managing Kubernetes applications. Think of it like `apt/yum/homebrew` for Kubernetes.
 
 ## Install Helm
 This demonstartes how to install Heml from binary.
@@ -13,7 +11,7 @@ This demonstartes how to install Heml from binary.
 
 ## 1. Get the latest version of Helm
 ```sh
-VER=$(curl -s https://api.github.com/repos/helm/helm/releases/latest|grep tag_name | cut -d '"' -f 4|sed 's/v//g')
+VER=$(curl -s https://api.github.com/repos/helm/helm/releases/latest | grep tag_name | cut -d '"' -f 4|sed 's/v//g')
 echo $VER
 ```
 

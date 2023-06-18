@@ -200,9 +200,10 @@ ssh-copy-id -i ~/.ssh/id_ecdsa.pub 192.168.13.3[0-2]
 
 K8s requires that swap partition is disabled on master and worker node of a cluster.
 
-Disable swap with this command:
+Disable swap and make it permanent with those commands:
 ```sh
-sudo swapoff -a; sudo sed -i '/swap/d' /etc/fstab
+sudo swapoff -a
+sudo sed -i '/swap/ s/./# &/' /etc/fstab
 ```
 
 ### Fix backspace/arrows issue with VI in edit mode (Optional)

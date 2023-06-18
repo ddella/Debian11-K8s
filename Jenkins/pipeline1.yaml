@@ -1,0 +1,40 @@
+pipeline {
+  agent {
+    kubernetes {
+      cloud 'k8s-1-jenkins-nodes-ns'
+      yaml '''
+        apiVersion: v1
+        kind: Pod
+        spec:
+          containers:
+          - name: maven
+            namespace: "jenkins-nodes-ns"
+            image: maven:alpine
+            command:
+            - cat
+            tty: true
+          - name: python3
+            image: python:3.11.4-slim-bullseye
+            command:
+            - cat
+            tty: true
+        '''
+    }
+  }
+  stages {
+    stage('Run maven') {
+      steps {
+        container('maven') {
+          sh 'echo "Hello from pipeline in namespace: jenkins-nodes-ns" > test.txt'
+          sh 'ls -la'
+        }
+        container('python3') {
+          sh 'python3 --version'
+          sh 'cat /etc/os-release'
+          sh 'cat test.txt'
+          sh 'ls -la'
+        }
+      }
+    }
+  }
+}

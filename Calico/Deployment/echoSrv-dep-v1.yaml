@@ -1,0 +1,32 @@
+# socat tcp-listen:6969,fork,reuseaddr exec:aplay
+
+# nc -lk 9000
+
+# echo -e "all"     | nc -vw 0 127.0.0.1 9000
+# echo -e "the"     | nc -vw 0 127.0.0.1 9000
+# echo -e "tcp"     | nc -vw 0 127.0.0.1 9000
+# echo -e "packets" | nc -vw 0 127.0.0.1 9000
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: echoSrv-dep-v1
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: echoSrv-dep-v1
+  template:
+    metadata:
+      labels:
+        app: echoSrv-dep-v1
+    spec:
+      containers:
+      - name: tcp-container
+        image: alpine
+        ports:
+        - containerPort: 80
+
+      - name: udp-container
+        image: alpine
+        command: ['/bin/sh']
+        args: ['-c', 'while true; do echo "Hello, Kubernetes $(date) from: $(hostname -i)!" > /pod-data/index.html; sleep 5 ; done']

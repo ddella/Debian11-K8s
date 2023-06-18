@@ -1,0 +1,29 @@
+# socat tcp-listen:6969,fork,reuseaddr exec:aplay
+
+# nc -lk 9000
+
+# echo -e "all"     | nc -vw 0 127.0.0.1 9000
+# echo -e "the"     | nc -vw 0 127.0.0.1 9000
+# echo -e "tcp"     | nc -vw 0 127.0.0.1 9000
+# echo -e "packets" | nc -vw 0 127.0.0.1 9000
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: echo-dep-v1
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: echo-dep-v1
+  template:
+    metadata:
+      labels:
+        app: echo-dep-v1
+        frontend: nginx
+        backend: alpine
+    spec:
+      containers:
+      - name: echo-server
+        image: alpine
+        command: ['/bin/sh']
+        args: ['-c', 'tail -f /dev/null']

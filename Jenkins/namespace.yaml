@@ -1,0 +1,5 @@
+# Create a NameSpace
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: jenkins-ns

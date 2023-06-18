@@ -75,24 +75,30 @@ sudo vi  /etc/netplan/00-installer-config.yaml
 ```
 
 Adapt to your network:
-
-    #  /etc/netplan/00-installer-config.yaml
-    version: 2
-    network:
-    ethernets:
-        ens160:
-        dhcp4: false
+```
+#  /etc/netplan/00-installer-config.yaml
+version: 2
+network:
+ethernets:
+    ens160:
+    dhcp4: false
+    addresses:
+    - 192.168.13.180/24
+    nameservers:
         addresses:
-        - 192.168.13.180/24
-        nameservers:
-            addresses:
-            - 9.9.9.9
-            - 149.112.112.112
-            search:
-            - example.com
-        routes:
-        - to: default
-            via: 192.168.13.1
+        - 9.9.9.9
+        - 149.112.112.112
+        search:
+        - example.com
+    routes:
+    - to: default
+        via: 192.168.13.1
+```
+
+To apply changes to `netplan` you will need to reload your Netplan network configurations with:
+```sh
+sudo netplan apply
+```
 
 ### Domain name
 Below is the command to add a domain name using the command line on Ubuntu 22.04 (replace `k8smaster1.example.com` with your hostname).

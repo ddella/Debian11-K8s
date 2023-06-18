@@ -425,6 +425,18 @@ NAME                               READY   STATUS    RESTARTS   AGE
 tigera-operator-58f95869d6-d6m2f   1/1     Running   0          3h35m
 ```
 
+Check the Calico API server:
+```sh
+kubectl get pods -n calico-apiserver
+```
+
+You should see output that looks like this:
+```
+NAME                                READY   STATUS    RESTARTS      AGE
+calico-apiserver-6c8b95d865-bbfj4   1/1     Running   1 (46m ago)   23h
+calico-apiserver-6c8b95d865-lx8lh   1/1     Running   1 (46m ago)   23h
+```
+
 View calico nodes
 ```sh
 kubectl get pod -n calico-system -o wide
@@ -449,6 +461,147 @@ csi-node-driver-x6hc8                      2/2     Running   0          3h35m   
 ### View Calico installation parameters
 ```sh
 kubectl get installation -o yaml
+```
+
+You should see output that looks like this:
+```
+apiVersion: v1
+items:
+- apiVersion: operator.tigera.io/v1
+  kind: Installation
+  metadata:
+    creationTimestamp: "2023-06-03T14:01:30Z"
+    finalizers:
+    - tigera.io/operator-cleanup
+    generation: 14
+    name: default
+    resourceVersion: "972883"
+    uid: 82b0510b-0ae9-4810-9b8e-e0db089ec7b9
+  spec:
+    calicoNetwork:
+      bgp: Enabled
+      hostPorts: Disabled
+      ipPools:
+      - blockSize: 26
+        cidr: 10.255.0.0/16
+        disableBGPExport: false
+        encapsulation: VXLANCrossSubnet
+        natOutgoing: Enabled
+        nodeSelector: all()
+      linuxDataplane: Iptables
+      multiInterfaceMode: None
+      nodeAddressAutodetectionV4:
+        firstFound: true
+    cni:
+      ipam:
+        type: Calico
+      type: Calico
+    controlPlaneReplicas: 2
+    flexVolumePath: /usr/libexec/kubernetes/kubelet-plugins/volume/exec/
+    kubeletVolumePluginPath: /var/lib/kubelet
+    logging:
+      cni:
+        logFileMaxAgeDays: 30
+        logFileMaxCount: 10
+        logFileMaxSize: 100Mi
+        logSeverity: Info
+    nodeUpdateStrategy:
+      rollingUpdate:
+        maxUnavailable: 1
+      type: RollingUpdate
+    nonPrivileged: Disabled
+    variant: Calico
+  status:
+    calicoVersion: v3.26.0
+    computed:
+      calicoNetwork:
+        bgp: Enabled
+        hostPorts: Disabled
+        ipPools:
+        - blockSize: 26
+          cidr: 10.255.0.0/16
+          disableBGPExport: false
+          encapsulation: VXLANCrossSubnet
+          natOutgoing: Enabled
+          nodeSelector: all()
+        linuxDataplane: Iptables
+        multiInterfaceMode: None
+        nodeAddressAutodetectionV4:
+          firstFound: true
+      cni:
+        ipam:
+          type: Calico
+        type: Calico
+      controlPlaneReplicas: 2
+      flexVolumePath: /usr/libexec/kubernetes/kubelet-plugins/volume/exec/
+      kubeletVolumePluginPath: /var/lib/kubelet
+      logging:
+        cni:
+          logFileMaxAgeDays: 30
+          logFileMaxCount: 10
+          logFileMaxSize: 100Mi
+          logSeverity: Info
+      nodeUpdateStrategy:
+        rollingUpdate:
+          maxUnavailable: 1
+        type: RollingUpdate
+      nonPrivileged: Disabled
+      variant: Calico
+    conditions:
+    - lastTransitionTime: "2023-06-11T13:37:23Z"
+      message: All Objects Available
+      observedGeneration: 14
+      reason: AllObjectsAvailable
+      status: "False"
+      type: Degraded
+    - lastTransitionTime: "2023-06-11T13:37:23Z"
+      message: All objects available
+      observedGeneration: 14
+      reason: AllObjectsAvailable
+      status: "True"
+      type: Ready
+    - lastTransitionTime: "2023-06-11T13:37:23Z"
+      message: All Objects Available
+      observedGeneration: 14
+      reason: AllObjectsAvailable
+      status: "False"
+      type: Progressing
+    mtu: 1450
+    variant: Calico
+kind: List
+metadata:
+  resourceVersion: ""
+```
+
+Retreive the configuration of `Felix`:
+```sh
+kubectl get felixconfiguration -o yaml
+```
+
+You should see output that looks like this:
+```
+apiVersion: v1
+items:
+- apiVersion: projectcalico.org/v3
+  kind: FelixConfiguration
+  metadata:
+    creationTimestamp: "2023-06-03T14:01:30Z"
+    generation: 1
+    name: default
+    resourceVersion: "830878"
+    uid: deb65f83-9958-49f7-91ec-888e7af73de9
+  spec:
+    bpfEnabled: false
+    bpfExternalServiceMode: Tunnel
+    bpfKubeProxyIptablesCleanupEnabled: true
+    bpfLogLevel: ""
+    floatingIPs: Disabled
+    healthPort: 9099
+    logSeverityScreen: Info
+    reportingInterval: 0s
+kind: List
+metadata:
+  resourceVersion: ""
 ```
 
 ### Run commands across multiple nodes

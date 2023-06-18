@@ -344,3 +344,9 @@ Project Link: [https://github.com/ddella/Debian11-Docker-K8s](https://github.com
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
 https://kubernetes.io/docs/tasks/administer-cluster/migrating-from-dockershim/change-runtime-containerd/
+
+Live switching of Kubernetes container runtime | From Docker to Containerd  
+https://www.youtube.com/watch?v=H7l48VQewmA
+
+Kubeadm HA | Adding additional master nodes to the cluster  
+https://www.youtube.com/watch?v=c_AWJttifTc&list=PL34sAs7_26wNBRWM6BDhnonoA5FMERax0&index=6

@@ -38,7 +38,8 @@ sudo mkdir /data
 
 Change the permissions and ownership to match the following (Be sure that you know what you are doing):
 ```sh
-sudo chown -R nobody: /data/
+sudo chown nobody:nogroup /data
+# sudo chown -R nobody: /data/
 sudo chmod -R 777 /data/
 ```
 
@@ -83,6 +84,84 @@ debian1.example.com:/data /home/daniel/mnt nfs rw,user,noauto
 Mount the NFS drive (remove the `-vvvv` to be less verbose):
 ```sh
 mount -vvvv debian1.example.com:/data ~/mnt/
+```
+
+# Time to test
+Lets create a K8s deployment of 3 Nginx Pods and mount an NFS volume into `/usr/share/nginx/html` of each Pod to serve a simple web page. After mounting an NFS drive, create a file `index.html` to test the deployment.
+
+## Create, test and delete an Nginx deployment
+Create the deployment:
+```sh
+kubectl create -f nfs-web.yaml
+```
+
+Check the status of the deployment:
+```sh
+kubectl get pods -l role=web-frontend -o=wide
+```
+
+The results should look like this:
+
+    NAME                        READY   STATUS    RESTARTS   AGE
+    nfs-web-5ff688ccf8-7k22s    1/1     Running   0          6m59s
+    nfs-web-5ff688ccf8-hlzz7    1/1     Running   0          6m59s
+    nfs-web-5ff688ccf8-rrtmv    1/1     Running   0          6m59s
+
+Get detailed information about the Deployment:
+```sh
+kubectl describe deployment nfs-web
+```
+  
+Get detailed information about a Pod:
+```sh
+kubectl describe pod nfs-web-5ff688ccf8-7k22s
+```
+  
+Jump inside the container of a Pod:
+```sh
+kubectl exec -it nfs-web-5ff688ccf8-7k22s -c nginx-container -- /bin/bash
+```
+  
+When you're done, delete the deployment:
+```sh
+kubectl delete -f nfs-web.yaml
+```
+
+`nfs-web.yaml` file:
+```yaml
+# This K8s deployment creates 3 Nginx Pods and
+# mount an NFS volume into "/usr/share/nginx/html" of each Pod to
+# serve a simple web page.
+#
+# kubectl apply --validate=true --dry-run=client --filename=nfs-web.yaml
+#
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nfs-web
+spec:
+  replicas: 3
+  template:
+    metadata:
+      labels:
+        role: web-frontend
+    spec:
+      containers:
+      - name: nginx-container
+        image: nginx
+        ports:
+          - name: web
+            containerPort: 80
+        volumeMounts:
+            # name must match the volume name below
+            - name: nfs
+              mountPath: "/usr/share/nginx/html"
+      volumes:
+      - name: nfs
+        nfs:
+          server: debian1.example.com
+          path: /data
+          readOnly: true
 ```
 
 # Reference

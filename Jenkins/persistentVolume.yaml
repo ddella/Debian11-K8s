@@ -11,4 +11,4 @@ spec:
     storage: 2Gi
   nfs: 
     path: /mnt/nfs_share
-    server: s700tmp1005.corp.bdc.test
+    server: ubuntu.example.com

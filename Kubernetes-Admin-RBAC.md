@@ -43,14 +43,14 @@ We need the `user1-csr.pem` file to generate a `CertificateSigningRequest` objec
 apiVersion: certificates.k8s.io/v1beta1
 kind: CertificateSigningRequest
 metadata:
-  name: user-request-devopstales
+  name: user1-request
 spec:
   groups:
   - system:authenticated
   # the base64 encoded value of the CSR file content
   request: ${BASE64_CSR}
   signerName: kubernetes.io/kube-apiserver-client
-  expirationSeconds: 315360000  # the years
+  expirationSeconds: 315360000  # ten years
   usages:
   # usages has to be 'client auth'
   - client auth
@@ -83,7 +83,7 @@ kubectl create -f user1-csr.yaml
 
 You should get the following output:
 ```
-certificatesigningrequest.certificates.k8s.io/user1 created
+certificatesigningrequest.certificates.k8s.io/user1-csr created
 ```
 
 Check the status of the CSR, don't worry it will be in Pending state.
@@ -91,19 +91,10 @@ Check the status of the CSR, don't worry it will be in Pending state.
 kubectl get csr
 ```
 
-NAME        AGE   REQUESTOR            CONDITION
-mycsr       9s    28b93...d73801ee46   Pending
-
-
-Check the certificate:
-```sh
-openssl x509 -text -noout -in user1-crt.pem
-```
-
 You should get the following output:
 ```
-NAME    AGE   SIGNERNAME                            REQUESTOR          REQUESTEDDURATION   CONDITION
-user1   44s   kubernetes.io/kube-apiserver-client   kubernetes-admin   10y                 Pending
+NAME        AGE   REQUESTOR            CONDITION
+user1-csr   9s    28b93...d73801ee46   Pending
 ```
 
 ## Approve the CSR:
@@ -136,7 +127,7 @@ openssl x509 -in user1-crt.pem -noout -text
 >Certificate is only valid one year, even if the CRS said otherwise 😉
 
 
-## Create namespace (optional)
+## Create namespace
 We can create a namespace so all the resources `user1` and his team will deploy are isolated from the other workload of the cluster.
 ```sh
 kubectl create namespace user1-ns

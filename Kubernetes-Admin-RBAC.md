@@ -299,7 +299,7 @@ We showed how to use a client certificate to authorize users into a Kubernetes c
 
 
 ## Cleanup
-Let's cleanup everything we created and leave the place clean 🧽
+Let's cleanup everything we created and leave the place clean 🧹
 
 Delete user `user1` in K8s:
  To remove the user:

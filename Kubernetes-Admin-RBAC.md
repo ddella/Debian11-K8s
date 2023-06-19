@@ -5,7 +5,7 @@ All Kubernetes clusters have two categories of users: `ServiceAccount` managed b
 ## Create a `normal user` account
 Create a new Linux user, assign the groups and set the password. This is done on the Kubernetes **control plane** only:
 ```sh
-sudo useradd -s /bin/bash -m -G sudo,docker,crictl user1
+sudo useradd -s /bin/bash -m -G docker,crictl user1
 sudo passwd user1
 ```
 

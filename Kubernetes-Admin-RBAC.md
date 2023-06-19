@@ -301,18 +301,17 @@ We showed how to use a client certificate to authorize users into a Kubernetes c
 ## Cleanup
 Let's cleanup everything we created and leave the place clean 🧹
 
-Delete user `user1` in K8s:
- To remove the user:
+Delete user `user1` in K8s with the command:
 ```sh
 kubectl config delete-user ${USER}
 ```
 
-Delete user `user1` in Linux:
+Delete user `user1` in Linux with the command:
 ```sh
 sudo userdel -f -r ${USER}
 ```
 
-Unset values shell variables:
+Unset values shell variables with the commands:
 ```sh
 unset USER
 unset CLUSTER_NAME
@@ -320,7 +319,7 @@ unset CLIENT_CERTIFICATE_DATA
 unset CLUSTER_ENDPOINT
 ```
 
-Remove all certificates, private key and CSR related to the user:
+Remove all certificates, private key and CSR related to the user with the command:
 ```sh
 rm -f ${USER}*.pem
 ```
@@ -328,4 +327,3 @@ rm -f ${USER}*.pem
 # References
 https://betterprogramming.pub/k8s-tips-give-access-to-your-clusterwith-a-client-certificate-dfb3b71a76fe
 https://devopstales.github.io/kubernetes/k8s-user-accounts/
-

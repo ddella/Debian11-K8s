@@ -87,7 +87,7 @@ kubectl get csr
 You should get the following output:
 ```
 NAME            AGE   SIGNERNAME                            REQUESTOR          REQUESTEDDURATION   CONDITION
-adm-${NEWUSER}-csr   24s   kubernetes.io/kube-apiserver-client   kubernetes-admin   10y                 Pending
+{NEWUSER}-csr   24s   kubernetes.io/kube-apiserver-client   kubernetes-admin   10y                 Pending
 ```
 
 ## Approve the CSR:

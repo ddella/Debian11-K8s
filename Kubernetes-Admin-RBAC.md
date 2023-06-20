@@ -455,6 +455,6 @@ rm -f config-${NEWUSER}
 # References
 The following sites are great references, unfortunatly none of them worked out of the box 😱
 
-https://betterprogramming.pub/k8s-tips-give-access-to-your-clusterwith-a-client-certificate-dfb3b71a76fe
-https://devopstales.github.io/kubernetes/k8s-user-accounts/
-https://www.golinuxcloud.com/kubernetes-rbac/
+https://betterprogramming.pub/k8s-tips-give-access-to-your-clusterwith-a-client-certificate-dfb3b71a76fe  
+https://devopstales.github.io/kubernetes/k8s-user-accounts/  
+https://www.golinuxcloud.com/kubernetes-rbac/  

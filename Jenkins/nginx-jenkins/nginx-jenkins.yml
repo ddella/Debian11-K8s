@@ -1,0 +1,144 @@
+# Create the Deployment: kubectl create -f xxx.yaml
+# Delete the Deployment: kubectl delete -f xxx.yaml
+# List all the Pods in the namespace: kubectl get pods -n nginx-jenkins-ns
+# List all the deployement in the namespace: kubectl get deployments -n nginx-jenkins-ns
+# List all the services in the namespace: kubectl get services -n nginx-jenkins-ns
+# Restart all the Pods without downtime: kubectl rollout restart deployment nginx-jenkins-dp -n nginx-jenkins-ns
+
+# Create a NameSpace
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: nginx-jenkins-ns
+---
+# Create a LoadBalancer service
+apiVersion: v1
+kind: Service
+metadata:
+  name: nginx-jenkins-svc
+  namespace: nginx-jenkins-ns
+  labels:
+    app: nginx-jenkins-svc
+spec:
+  type: LoadBalancer
+  ports:
+  - port: 443
+  selector:
+    app: nginx
+---
+# Create a NodePort service
+apiVersion: v1
+kind: Service
+metadata:
+  name: nginx-jenkins-np
+  namespace: nginx-jenkins-ns
+  labels:
+    app: nginx-jenkins-np
+    service: NodePort
+spec:
+  type: NodePort
+  # externalTrafficPolicy: Local
+  ports:
+  - port: 443
+    nodePort: 31443
+    protocol: TCP
+    name: nginx-jenkins-np
+  selector:
+    app: nginx-jenkins-dp
+---
+# Create PersistentVolume for 'Site Content'
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: nginx-jenkins-pv-sitecontent
+  namespace: nginx-jenkins-ns
+spec:
+  storageClassName: nginx-jenkins-pv-sitecontent
+  accessModes:
+    - ReadWriteMany
+  capacity:
+    storage: 500Mi
+  nfs:
+    path: /mnt/nginx-jenkins/html
+    server: s700tmp1005.corp.bdc.test
+---
+# Create PersistentVolume Claim for 'Site Content'
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: nginx-jenkins-pvc-sitecontent
+  namespace: nginx-jenkins-ns
+spec:
+  storageClassName: nginx-jenkins-pv-sitecontent
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: 500Mi
+---
+# Create PersistentVolume for 'Conf'
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: nginx-jenkins-pv-conf
+  namespace: nginx-jenkins-ns
+spec:
+  storageClassName: nginx-jenkins-pv-conf
+  accessModes:
+    - ReadWriteMany
+  capacity:
+    storage: 100Mi
+  nfs:
+    path: /mnt/nginx-jenkins/conf
+    server: s700tmp1005.corp.bdc.test
+---
+# Create PersistentVolume Claim for 'Conf'
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: nginx-jenkins-pvc-conf
+  namespace: nginx-jenkins-ns
+spec:
+  storageClassName: nginx-jenkins-pv-conf
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: 100Mi
+---
+# Create Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nginx-jenkins-dp
+  namespace: nginx-jenkins-ns
+  labels:
+    app: nginx-jenkins-dp
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: nginx-jenkins-dp
+  template:
+    metadata:
+      labels:
+        app: nginx-jenkins-dp
+    spec:
+      containers:
+      - name: nginx
+        image: nginx:1.25.1-alpine3.17-slim
+        ports:
+        - containerPort: 443
+        volumeMounts:
+          - name: nginx-jenkins-pv-sitecontent
+            mountPath: /usr/share/nginx/html
+          - name: nginx-jenkins-pv-conf
+            mountPath: /etc/nginx/conf.d
+      volumes:
+        - name: nginx-jenkins-pv-sitecontent
+          persistentVolumeClaim:
+              claimName: nginx-jenkins-pvc-sitecontent
+        - name: nginx-jenkins-pv-conf
+          persistentVolumeClaim:
+              claimName: nginx-jenkins-pvc-conf
+---

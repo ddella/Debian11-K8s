@@ -159,26 +159,6 @@ By creating a certificate, we allow `${NEWUSER}` to authenticate against K8s API
 
 In a nutshell: A `Role` (the same applies to a `ClusterRole`) contains a list of rules. Each rule defines some actions that can be performed (eg: list, get, watch, …) against a list of resources (eg: Pod, Service, Secret) within apiGroups (eg: core, apps/v1, …). While a `Role` defines rights for a specific namespace, the scope of a `ClusterRole` is the entire cluster
 
-## Creation of a Role
-Let’s first create a Role resource with the following specification:
-
-```sh
-cat > ${NEWUSER}-role.yaml <<EOF
-kind: Role
-apiVersion: rbac.authorization.k8s.io/v1
-metadata:
- namespace: ${NEWUSER}-ns
- name: ${NEWUSER}-role
-rules:
-- apiGroups: [""]
-  resources: ["pods", "services"]
-  verbs: ["create", "get", "update", "list", "delete"]
-- apiGroups: ["apps"]
-  resources: ["deployments"]
-  verbs: ["create", "get", "update", "list", "delete"]
-EOF
-```
-
 Below is a table of the API groups and resources `apiGroups`:
 
 |apiGroup|Resources|
@@ -193,7 +173,30 @@ Below is a table of the API groups and resources `apiGroups`:
 |rbac.authorization.k8s.io|rolebindings,roles|
 |extensions|deprecated (read notes)|
 
-Pods and Services resources belongs to the core API group (value of the apiGroups key is the empty string), whereas Deployments resources belongs to the apps API group. For those 2 apiGroups, we defined the list of resources and the actions that should be authorized on those ones.
+`Pods` and `Services` resources belongs to the core API group (value of the apiGroups key is the empty string), whereas `Deployments` resources belongs to the `apps` API group. For those 2 apiGroups, we defined the list of resources and the actions that should be authorized on those ones.
+
+List of verbs: [get, list, watch, create, update, patch, delete]
+
+## Creation of a Role
+Let’s first create a Role resource with the following specification:
+
+```sh
+cat > ${NEWUSER}-role.yaml <<EOF
+kind: Role
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+ namespace: ${NEWUSER}-ns
+ name: ${NEWUSER}-role
+rules:
+# An empty string designates the core API group
+- apiGroups: [""]
+  resources: ["pods", "services"]
+  verbs: ["create", "get", "update", "list", "delete"]
+- apiGroups: ["apps"]
+  resources: ["deployments"]
+  verbs: ["create", "get", "update", "list", "delete"]
+EOF
+```
 
 Create the role with the following command:
 ```sh
@@ -380,14 +383,15 @@ chown $(id -u):$(id -g) $HOME/.kube/config
 ## Summary
 We showed how to use a client certificate to authorize users into a Kubernetes cluster. We could have used other ways to set up this authentication, like external identity provider. Once the authentication was set up, we used a `Role` to define some rights limited to a namespace and bind it to the user with a `RoleBinding`. In case we need to provide Cluster-wide rights, we could use `ClusterRole` and `ClusterRoleBinding` resources.
 
-# Troubleshooting
+# Troubleshooting (Work in progress)
 
+```sh
 kubectl api-resources
 kubectl explain RoleBinding
 kubectl explain Role
 kubectl get role -A
 kubectl get rolebinding -A -o=wide
-
+```
 
 ```sh
 kubectl  describe role ${NEWUSER}-role -n ${NEWUSER}-ns

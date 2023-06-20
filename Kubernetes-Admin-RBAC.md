@@ -16,7 +16,7 @@ In this tutorial we'll use Client certificates to authenticate API calls and Rol
 Use an environment variable for the user you want to create. It will be used throughout this tutorial:
 ```sh
 # User to be created
-export NEW-USER="adm-user1"
+export NEWUSER="adm-user1"
 ```
 
 ## Create a Certificate Signing Request (CSR)
@@ -441,19 +441,19 @@ unset CLIENT_CERTIFICATE
 unset CLUSTER_ENDPOINT
 ```
 
-Remove all certificates, private key and CSR related to the user with the command:
+Remove all certificates, private key and CSR related to the user ${NEWUSER} with the command:
 ```sh
 rm -f ${NEWUSER}*.pem
 rm -f ${CLUSTER_NAME}-ca.pem
 ```
 
-Remove the configuration file `config-${NEWUSER}` withn the command:
+Remove the configuration file `config-${NEWUSER}` with the command:
 ```sh
 rm -f config-${NEWUSER}
 ```
 
 # References
-The following sites are great reference, unfortunatly none of them works out of the box.
+The following sites are great references, unfortunatly none of them worked out of the box 😱
 
 https://betterprogramming.pub/k8s-tips-give-access-to-your-clusterwith-a-client-certificate-dfb3b71a76fe
 https://devopstales.github.io/kubernetes/k8s-user-accounts/

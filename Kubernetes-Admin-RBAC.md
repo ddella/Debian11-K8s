@@ -1,5 +1,5 @@
 # Users access to Kubernetes API
-To manage a Kubernetes cluster, `kubectl` is usually used. Behind the hood it calls the API Server: the HTTP Rest API exposing all the endpoints of the cluster’s control plane. When a request is sent to the API Server, it first needs to be authenticated (to make sure the requestor is known by the system) before it’s authorized (to make sure the requestor is allowed to perform the action requested).
+To manage a Kubernetes cluster, `kubectl` is usually used. Behind the hood it calls the API Server. The HTTP Rest API exposing all the endpoints of the cluster’s control plane. When a request is sent to the API Server, it first needs to be authenticated (to make sure the requestor is known by the system) before it’s authorized (to make sure the requestor is allowed to perform the action requested).
 
 The authentication step is done through the use of authentication plugins. There are several plugins as different authentication mechanisms can be used:
 
@@ -8,21 +8,50 @@ The authentication step is done through the use of authentication plugins. There
 - Authenticating proxy
 - HTTP basic auth
 
-There is no user nor group resources inside a Kubernetes cluster. This should be handled outside of the cluster and provided with each request sent to the API Server.
+There is no user nor group resources inside a Kubernetes cluster. This should be handled outside of the cluster and provided with each request sent to the API Server. In this tutorial, we'll use **Client certificates** to authenticate API calls and **Role/RoleBinding** for authorisation. Any user that presents a valid certificate signed by the cluster’s certificate authority (CA) is considered authenticated. So you need to create a certificate for each user that needs to administer the K8s cluster.
 
-In this tutorial we'll use Client certificates to authenticate API calls and Role/RoleBinding for authorisation.
 
 ## Set the username
-Use an environment variable for the user you want to create. It will be used throughout this tutorial:
+Since we will need to type the new username often, let's use an environment variable. All the commands should be entered in the same shell.
 ```sh
 # User to be created
 export NEWUSER="adm-user1"
 ```
 
-## Create a Certificate Signing Request (CSR)
-Create a certificate for that user you created in the step above. I'll create an ECC private key and a Certificate Signing Request (CSR).
+>This tutorial will create some files, I suggest you do it in a new directory.
 
->**Note:**At the time of this writing, ECC was not supported. I got the message `x509: unsupported elliptic curve` when trying to have K8s signed the CSR.
+## 
+Kubernetes does not support user authentication by default but it has the possibility of reading the Common Name and the Organization from a client certificate that `kubectl` in each API call. Below is a snippet of a client certificate that we will create with `openssl` and signed by our K8s cluster.
+
+```
+Issuer: CN = kubernetes
+[...]
+Subject: C = CA, ST = QC, L = Montreal, O = adm-user1-ns, CN = adm-user1
+[...]
+X509v3 extensions:
+    X509v3 Key Usage: critical
+        Digital Signature, Key Encipherment
+    X509v3 Extended Key Usage: 
+        TLS Web Client Authentication
+    X509v3 Basic Constraints: critical
+        CA:FALSE
+```
+
+Below are the minimal parameters for the client TLS certificate:
+- Common Name (CN) represents the new user, we'll use `${NEWUSER}`
+- Organization (O) represents the group, we'll set it to ``${NEWUSER}-ns` (more than one group can be configured)
+- Basic Constraints needs to be set to `false`
+- X.509 `basicConstraints` needs to be set to `FALSE`
+- X.509 `extendedKeyUsage` needs to be `clientAuth`
+- X.509 `subjectKeyIdentifier` needs to be `hash`
+- X.509 `keyUsage` needs to have at least `digitalSignature` and `keyEncipherment`
+
+## Create a Certificate Signing Request (CSR)
+Let's create a standard client TLS certificate with `openssl` in two steps:
+- create the private key
+- create the Certificate Signing Request (CSR).
+
+>**Note:**At the time of this writing, ECC keys were not supported. I got the message `x509: unsupported elliptic curve` when trying to have K8s signed the CSR.
 
 Start by creating a private key for `${NEWUSER}`:
 ```sh
@@ -30,18 +59,13 @@ Start by creating a private key for `${NEWUSER}`:
 openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048 -out ${NEWUSER}-key.pem
 ```
 
-Create a Certificate Signing Request (CSR). It is important that you assign a Subject with the name of the user and the namespace which you plan to use for `${NEWUSER}`. The user needs to make sure he:
-
-- Use his name in the Common Name (CN) field: this will be used to identify him against the API Server.
-- Use the group name in the Organisation (O) field: this will be used to identify the group against the API Server.
-
-This is the command to generate the CSR:
+Create a Certificate Signing Request (CSR) with the following command:
 ```sh
 openssl req -new -sha256 -key ${NEWUSER}-key.pem -subj "/C=CA/ST=QC/L=Montreal/CN=${NEWUSER}/O=${NEWUSER}-ns" \
 -addext "basicConstraints = CA:FALSE" \
 -addext "extendedKeyUsage = clientAuth" \
 -addext "subjectKeyIdentifier = hash" \
--addext "keyUsage = nonRepudiation, digitalSignature, keyEncipherment, keyAgreement, dataEncipherment" \
+-addext "keyUsage = digitalSignature, keyEncipherment" \
 -out ${NEWUSER}-csr.pem
 ```
 
@@ -413,7 +437,7 @@ kubectl delete role ${NEWUSER}-role -n ${NEWUSER}-ns
 
 The output should look like this:
 ```
-role.rbac.authorization.k8s.io "dev" deleted
+role.rbac.authorization.k8s.io "${NEWUSER}-role" deleted
 ```
 
 ## Deleting RoleBinding
@@ -423,22 +447,15 @@ Use the following command to delete a role binding along with the namespace unde
 kubectl delete rolebinding ${NEWUSER}-rolebinding -n ${NEWUSER}-ns
 ```
 
+The output should look like this:
 ```
-rolebinding.rbac.authorization.k8s.io "dev-role-binding" deleted
+rolebinding.rbac.authorization.k8s.io "${NEWUSER}-rolebinding" deleted
 ```
 
 ## Delete namespace
 Delete the namespace (this should delete ALL resources associated to that namespace including `rolebinding`):
 ```sh
 kubectl delete namespace ${NEWUSER}-ns
-```
-
-Unset values shell variables with the commands:
-```sh
-unset USER
-unset CLUSTER_NAME
-unset CLIENT_CERTIFICATE
-unset CLUSTER_ENDPOINT
 ```
 
 Remove all certificates, private key and CSR related to the user ${NEWUSER} with the command:
@@ -452,9 +469,18 @@ Remove the configuration file `config-${NEWUSER}` with the command:
 rm -f config-${NEWUSER}
 ```
 
+Unset values shell variables with the commands:
+```sh
+unset USER
+unset CLUSTER_NAME
+unset CLIENT_CERTIFICATE
+unset CLUSTER_ENDPOINT
+```
+
 # References
 The following sites are great references, unfortunatly none of them worked out of the box 😱
 
 https://betterprogramming.pub/k8s-tips-give-access-to-your-clusterwith-a-client-certificate-dfb3b71a76fe  
 https://devopstales.github.io/kubernetes/k8s-user-accounts/  
 https://www.golinuxcloud.com/kubernetes-rbac/  
+https://devopstales.github.io/kubernetes/k8s-user-accounts/  

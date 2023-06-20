@@ -1,7 +1,16 @@
-# New Users in Kubernetes
-All Kubernetes clusters have two categories of users: `ServiceAccount` managed by Kubernetes, and `normal users`. Kubernetes does not have objects which represent normal user accounts. Normal users cannot be added to a cluster through an API call. Any user that presents a valid certificate signed by the cluster’s certificate authority (CA) is considered authenticated. So, you need to create a certificate for your user.
+# Users access to Kubernetes API
+To manage a Kubernetes cluster, `kubectl` is usually used. Behind the hood it calls the API Server: the HTTP Rest API exposing all the endpoints of the cluster’s control plane. When a request is sent to the API Server, it first needs to be authenticated (to make sure the requestor is known by the system) before it’s authorized (to make sure the requestor is allowed to perform the action requested).
 
-This tutorial is about creating a user that will have access to K8s API but in a specific namespace only. Thta user won't be able to view, delete, create anything outside of it's namespace.
+The authentication step is done through the use of authentication plugins. There are several plugins as different authentication mechanisms can be used:
+
+- Client certificates (this tutorial)
+- Bearer tokens
+- Authenticating proxy
+- HTTP basic auth
+
+There is no user nor group resources inside a Kubernetes cluster. This should be handled outside of the cluster and provided with each request sent to the API Server.
+
+In this tutorial we'll use Client certificates to authenticate API calls and Role/RoleBinding for authorisation.
 
 ## Set the username
 Use an environment variable for the user you want to create. It will be used throughout this tutorial:
@@ -53,19 +62,21 @@ spec:
   signerName: kubernetes.io/kube-apiserver-client
   expirationSeconds: 315360000
   usages:
+  - digital signature
+  - key encipherment
   - client auth
 EOF
 ```
->**Note:** Make sure NOT to surround `EOF` with single quotes, as it will not execute the `base64` command.
+>**Note:** Make sure NOT to surround `EOF` with single quotes, as it will not evaluate any variables or commands.
 
 Let's create the `CertificateSigninRequest` resource with the command:
 ```sh
-kubectl create -f ${USER}-csr.yaml
+kubectl apply -f ${USER}-csr.yaml
 ```
 
 You should get the following output:
 ```
-certificatesigningrequest.certificates.k8s.io/adm-${USER}-csr created
+certificatesigningrequest.certificates.k8s.io/${USER}-csr created
 ```
 
 Check the status of the CSR, don't worry it will be in Pending state.
@@ -87,11 +98,11 @@ kubectl certificate approve ${USER}-csr
 
 You should get the following output:
 ```
-certificatesigningrequest.certificates.k8s.io/adm-${USER}-csr approved
+certificatesigningrequest.certificates.k8s.io/${USER}-csr approved
 ```
 
 ## Get the certificate
-(Optional) You can retrieve the certificate from the CSR. The certificate value is in Base64-encoded format under `status.certificate`:
+(Optional: for information only) You can retrieve the certificate from the CSR. The certificate value is in Base64-encoded format under `status.certificate`:
 ```sh
 kubectl get csr/${USER}-csr -o yaml
 ```
@@ -109,7 +120,7 @@ openssl x509 -in ${USER}-crt.pem -noout -text
 >Certificate is only valid one year, even if the CRS said otherwise 😉
 
 ## Create namespace
-We can create a namespace so all the resources `${USER}` and his team will deploy are isolated from the other workload of the cluster.
+Create a namespace so all the resources `${USER}` will deploy are isolated from the other workload of the cluster.
 ```sh
 kubectl create namespace ${USER}-ns
 ```
@@ -144,11 +155,25 @@ rules:
 EOF
 ```
 
+Below is a table of the API groups and resources `apiGroups`:
+
+|apiGroup|Resources|
+|:---|:---|
+|apps|daemonsets, deployments, deployments/rollback, deployments/scale, replicasets, replicasets/scale, statefulsets, statefulsets/scale|
+|core|configmaps, endpoints, persistentvolumeclaims, replicationcontrollers, replicationcontrollers/scale, secrets, serviceaccounts, services,services/proxy|
+|autoscaling|horizontalpodautoscalers|
+|batch|cronjobs, jobs|
+|policy|poddisruptionbudgets|
+|networking.k8s.io|networkpolicies|
+|authorization.k8s.io|localsubjectaccessreviews|
+|rbac.authorization.k8s.io|rolebindings,roles|
+|extensions|deprecated (read notes)|
+
 Pods and Services resources belongs to the core API group (value of the apiGroups key is the empty string), whereas Deployments resources belongs to the apps API group. For those 2 apiGroups, we defined the list of resources and the actions that should be authorized on those ones.
 
 Create the role with the following command:
 ```sh
-kubectl create -f ${USER}-role.yaml
+kubectl apply -f ${USER}-role.yaml
 ```
 
 The output should look like this:
@@ -187,7 +212,7 @@ Note: as our user belongs to the `dev` group, we could have used `kind: Group`, 
 
 Create the role with the following command:
 ```sh
-kubectl create -f ${USER}-rolebinding.yaml
+kubectl apply -f ${USER}-rolebinding.yaml
 ```
 
 The output should look like this:
@@ -196,7 +221,7 @@ rolebinding.rbac.authorization.k8s.io/${USER}-rolebinding created
 ```
 
 ## Building a Kube Config for `${USER}`
-Everything is set up. We now have to send `${USER}` the information needed to configure the local `kubectl` client to communicate with our cluster.
+The only thing left is to create the K8s configuration file, usualy `~/.kube/config`. This file is needed by `kubectl` client to communicate with the K8s cluster.
 
 ```sh
 # Cluster Name
@@ -209,57 +234,113 @@ kubectl config view --raw -o jsonpath='{range .clusters[*].cluster}{.certificate
 export CLUSTER_ENDPOINT=$(kubectl config view -o jsonpath='{range .clusters[*].cluster}{.server}')
 ```
 
+List the available contexts:
+```sh
+kubectl config get-contexts
+```
+
+The output should look like this:
+```
+CURRENT   NAME                          CLUSTER      AUTHINFO           NAMESPACE
+*         kubernetes-admin@kubernetes   kubernetes   kubernetes-admin   
+```
+
 Create the K8s configuration file:
 ```sh
 kubectl --kubeconfig config-${USER} config set-cluster ${CLUSTER_NAME} --server=${CLUSTER_ENDPOINT}
 kubectl --kubeconfig config-${USER} config set-cluster ${CLUSTER_NAME} --embed-certs --certificate-authority=${CLUSTER_NAME}-ca.pem
 kubectl --kubeconfig config-${USER} config set-credentials ${USER} --client-certificate=${USER}-crt.pem --client-key=${USER}-key.pem --embed-certs=true
-kubectl --kubeconfig config-${USER} config set-context default --cluster=${CLUSTER_NAME} --user=${USER}
-kubectl --kubeconfig config-${USER} config use-context default
+kubectl --kubeconfig config-${USER} config set-context ${USER}@${CLUSTER_NAME} --namespace=${USER}-ns --cluster=${CLUSTER_NAME} --user=${USER}
+kubectl --kubeconfig config-${USER} config use-context ${USER}@${CLUSTER_NAME}
 ```
 
 The file `config-${USER}` should look like this template.
 ```yaml
 apiVersion: v1
-kind: Config
 clusters:
 - cluster:
     certificate-authority-data: ${CLUSTER_CA}
     server: ${CLUSTER_ENDPOINT}
   name: ${CLUSTER_NAME}
+contexts:
+- context:
+    cluster: ${CLUSTER_NAME}
+    namespace: ${USER}-ns
+    user: ${USER}
+  name: ${USER}@${CLUSTER_NAME}
+current-context: ${USER}1@${CLUSTER_NAME}
+kind: Config
+preferences: {}
 users:
 - name: ${USER}
   user:
     client-certificate-data: ${CLIENT_CERTIFICATE}
-contexts:
-- context:
-    cluster: ${CLUSTER_NAME}
-    user: ${USER}
-  name: ${USER}-${CLUSTER_NAME}
-current-context: ${USER}-${CLUSTER_NAME}
+    client-key-data: ${USER}-key.pem
 ```
 
 ## Test the new user
-Just prepand all the `kubectl` commands with `--kubeconfig config-${USER}` to use it's own K8s configuration file instead of your configuration file.
+For testing purposes, append all the `kubectl` commands with `--kubeconfig config-${USER}` to use the K8s configuration file you just created, instead of yours.
 
-Try to list the Pods in the default namespace with the command:
+>**Note:**Since we configured the ${USER} with the command `kubectl --kubeconfig config-${USER} config use-context ${USER}@${CLUSTER_NAME}`, every command the user enter are in the context of it's namespace.
+
+Try to list the Pods in the `default` namespace with the command:
 ```sh
 kubectl --kubeconfig config-${USER} get pods
 ```
 
+This command should succeed because it's run in the context of the namespace `${USER}-ns`:
+```
+No resources found in adm-user1-ns namespace.
+```
+
+Try to list the Pods in the `default` namespace with the command:
+```sh
+kubectl --kubeconfig config-${USER} get pods -n default
+```
+
 The command should fail since we gave `${USER}` access only to the namespace `${USER}-ns`. The output should look like this:
 ```
-Error from server (Forbidden): pods is forbidden: User "${USER}" cannot list resource "pods" in API group "" in the namespace "default"
+Error from server (Forbidden): pods is forbidden: User "adm-user1" cannot list resource "pods" in API group "" in the namespace "default"
 ```
 
-Try to list the Pods in the `${USER}-ns` namespace with the command:
+## Create a Pod
+Just create a standard Nginx Pod with this manifest:
 ```sh
-kubectl --kubeconfig config-${USER} get pods -n ${USER}-ns
+cat > ${USER}-pod.yaml <<EOF
+apiVersion: v1
+kind: Pod
+metadata:
+  name: nginx-pod
+  namespace: ${USER}-ns
+spec:
+  containers:
+  - name: nginx-container
+    image: nginx
+    ports:
+    - containerPort: 80
+  restartPolicy: Never
+EOF
 ```
 
-This time the command should succeed with the output:
+Create a Pod with the command:
+```sh
+kubectl --kubeconfig config-${USER} create -f ${USER}-pod.yaml
 ```
-No resources found in kubectl --kubeconfig config-${USER} get pods -n ${USER}-ns-ns namespace.
+
+List the Pods in the `${USER}-ns` namespace with the command (no need to specify the namespace):
+```sh
+kubectl --kubeconfig config-${USER} get pods
+```
+
+You should see the Pod `nginx-pod`.
+```
+NAME        READY   STATUS    RESTARTS   AGE
+nginx-pod   1/1     Running   0          39s
+```
+
+Delete a Pod with the command:
+```sh
+kubectl --kubeconfig config-${USER} delete -f ${USER}-pod.yaml
 ```
 
 ## Install the file `config-${USER}` for `${USER}`

@@ -162,7 +162,7 @@ endpointslice.discovery.k8s.io/jenkins-service-b8kqz   IPv4          8080    10.
 
 Using the `kubectl get all` command we can list down all the pods, services, statefulsets, etc. in a namespace but not all the resources are listed using this command like persistent volume claim and service account.
 
-# Update the version of Jenkins
+# Jenkins Upgrade
 In this section we'll perform a rolling update using `kubectl` to upgrade the version of Jenkins. Similar to application Scaling, the Service will load-balance the traffic only to available Pods during the update. An available Pod is an instance that is available to the users of the application.
 
 Rolling updates allow the following actions:
@@ -171,22 +171,96 @@ Rolling updates allow the following actions:
 - Rollback to previous versions
 - Continuous Integration and Continuous Delivery of applications with zero downtime
 
-To update the image of Jenkins to version 2.410, use the set image subcommand, followed by the deployment name and the new image version:
+This section demonstrate how to upgrade the image of Jenkins from version 2.410 to version 2.411 with a custom image on local K8s registry.
+
+1. Build a custom Jenkins image with `docker build`
+2. Test the image with `docker run`
+3. Copy the image from Docker to a `.tar` file on your local disk
+4. Copy the `.tar` to all K8s worker node
+5. Import the `.tar` in K8s local registry
+6. Upgrade Jenkins with the new image
+
+ 
+## Build a custom Jenkins image with `docker build`
+Use the following `Dockerfile` and adapt it to your needs. Build the image when you're done:
 ```sh
-kubectl set image deployments/jenkins jenkins=jenkins/jenkins:2.410 -n jenkins-ns
+docker build . -t jenkins:2.411-py3
+```
+
+>The only modification to the original Jenkins image is the addition of Python.
+```Dockerfile
+FROM jenkins/jenkins:2.411
+USER root
+RUN apt update && apt install -y python3-pip
+USER jenkins
+ENTRYPOINT ["/usr/bin/tini", "--", "/usr/local/bin/jenkins.sh"]
+```
+
+## Test the image with `docker run`
+Run the image with Docker:
+```sh
+docker run --rm -d --name jenkins -p 8080:8080 -p 50000:50000 jenkins:2.411-py3
+```
+ 
+Jump inside the container and verify that Python has been installed:
+```sh
+docker exec -it jenkins /bin/bash
+python3 --version
+exit
+```
+
+From the Docker host, verify that port `8080` is responding:
+```sh
+curl http://127.0.0.1:8080
+```
+ 
+Terminate the Docker container when done:
+```sh
+docker rm -f jenkins
+```
+
+## Copy the image from Docker to a `.tar` file on your local disk
+Extract the image from Docker local registry to a `.tar` file on your local disk:
+```sh
+docker image save jenkins:2.411-py3 -o jenkins:2.411-py3.tar
+```
+Delete the image from Docker:
+```sh
+docker image rm jenkins:2.410-py3
+```
+
+## Copy the `.tar` to all K8s worker node
+Copy the image on ALL your K8s **Worker Nodes** (make sure to use `./` before the filename since it has `:`)
+```sh
+scp ./jenkins:2.411-py3.tar adm-dellda@<worker-node>:/tmp/.
+```
+
+>You don't need to copy the image to the control plane
+ 
+# Import the `.tar` in K8s local registry
+Import the image (`.tar` file) to Kubernetes local repository on ALL your K8s **Worker Nodes**. Check that it's there and delete the `.tar` file on disk:
+
+```sh
+sudo nerdctl --namespace=k8s.io load -i /tmp/jenkins:2.411-py3.tar \
+sudo nerdctl --namespace=k8s.io image ls | grep jenkins \
+rm -f /tmp/jenkins:2.411-py3.tar
+```
+ 
+## Upgrade Jenkins with the new image
+Start a new terminal and use the `watch` command to see the rollout in near real time:
+```sh
+watch -n 1 kubectl get pods -n jenkins-ns
+```
+ 
+Now, in an another terminal, update the Jenkins deployment with the container having the new image:
+```sh
+kubectl set image deployments/jenkins jenkins=jenkins:2.411-py3 -n jenkins-ns
 ```
 
 The output should look like this
 ```
 deployment.apps/jenkins image updated
 ```
-
-You can watch the Pods with the command:
-```sh
-watch -n 1 kubectl get pods -n jenkins-ns
-```
-
->**Note:**Some of the output in the sections above have been taken after the upgrade. I'm sorry for the confusion but you should be able to figure it out 😉
 
 ## Rollout
 Incase it doesn't work, you can rollout. Check the history and rollout to the version before the last:

@@ -10,6 +10,7 @@ The authentication step is done through the use of authentication plugins. There
 
 There is no user nor group resources inside a Kubernetes cluster. This should be handled outside of the cluster and provided with each request sent to the API Server. In this tutorial, we'll use **Client certificates** to authenticate API calls and **Role/RoleBinding** for authorisation. Any user that presents a valid certificate signed by the cluster’s certificate authority (CA) is considered authenticated. So you need to create a certificate for each user that needs to administer the K8s cluster.
 
+>Any client that presents a valid certificate signed by the cluster's certificate authority (CA) is considered authenticated. In this scenario, Kubernetes assigns the username from the common name field in the 'subject' of the certificate (e.g., "/CN=bob").
 
 ## Set the username
 Since we will need to type the new username often, let's use an environment variable. All the commands should be entered in the same shell.

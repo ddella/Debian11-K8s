@@ -163,12 +163,12 @@ endpointslice.discovery.k8s.io/jenkins-service-b8kqz   IPv4          8080    10.
 Using the `kubectl get all` command we can list down all the pods, services, statefulsets, etc. in a namespace but not all the resources are listed using this command like persistent volume claim and service account.
 
 # Jenkins Upgrade
-In this section we'll perform a rolling update using `kubectl` to upgrade the version of Jenkins. Similar to application Scaling, the Service will load-balance the traffic only to available Pods during the update. An available Pod is an instance that is available to the users of the application.
+After Jenkins has been installed and working, you will have to upgrade Jenkins from time to time. In this section we'll perform a rolling update using `kubectl` to upgrade the version of Jenkins. Similar to application Scaling, the Service will load-balance the traffic only to available Pods during the update. An available Pod is an instance that is available to the users of the application.
 
 Rolling updates allow the following actions:
 
 - Promote an application from one environment to another (via container image updates)
-- Rollback to previous versions
+- Rollback to previous versions if something doesn't work
 - Continuous Integration and Continuous Delivery of applications with zero downtime
 
 This section demonstrate how to upgrade the image of Jenkins from version 2.410 to version 2.411 with a custom image on local K8s registry.
@@ -188,6 +188,7 @@ docker build . -t jenkins:2.411-py3
 ```
 
 >The only modification to the original Jenkins image is the addition of Python.
+
 ```Dockerfile
 FROM jenkins/jenkins:2.411
 USER root
@@ -197,42 +198,43 @@ ENTRYPOINT ["/usr/bin/tini", "--", "/usr/local/bin/jenkins.sh"]
 ```
 
 ## Test the image with `docker run`
-Run the image with Docker:
+After the image has been built, run it with Docker:
 ```sh
 docker run --rm -d --name jenkins -p 8080:8080 -p 50000:50000 jenkins:2.411-py3
 ```
  
-Jump inside the container and verify that Python has been installed:
+Jump inside the container and verify that Python has been installed, since we added Python:
 ```sh
 docker exec -it jenkins /bin/bash
 python3 --version
 exit
 ```
 
-From the Docker host, verify that port `8080` is responding:
+From the Docker host, verify that port `8080` is responding. You will get some `HTML` output on the screen if it succeed:
 ```sh
 curl http://127.0.0.1:8080
 ```
  
-Terminate the Docker container when done:
+Terminate the Docker container when you're done:
 ```sh
 docker rm -f jenkins
 ```
 
 ## Copy the image from Docker to a `.tar` file on your local disk
-Extract the image from Docker local registry to a `.tar` file on your local disk:
+Extract the image from your local Docker repository to a `.tar` file on your local disk:
 ```sh
 docker image save jenkins:2.411-py3 -o jenkins:2.411-py3.tar
 ```
-Delete the image from Docker:
+
+Delete the image from your local Docker repository. The goal is to run the image in Kubernetes not Docker:
 ```sh
 docker image rm jenkins:2.410-py3
 ```
 
-## Copy the `.tar` to all K8s worker node
+## Copy the `.tar` file to all K8s worker node
 Copy the image on ALL your K8s **Worker Nodes** (make sure to use `./` before the filename since it has `:`)
 ```sh
-scp ./jenkins:2.411-py3.tar adm-dellda@<worker-node>:/tmp/.
+scp ./jenkins:2.411-py3.tar admin@<worker-node>:/tmp/.
 ```
 
 >You don't need to copy the image to the control plane
@@ -252,7 +254,7 @@ Start a new terminal and use the `watch` command to see the rollout in near real
 watch -n 1 kubectl get pods -n jenkins-ns
 ```
  
-Now, in an another terminal, update the Jenkins deployment with the container having the new image:
+Now, in an another terminal, update the Jenkins deployment with a new container having the new image:
 ```sh
 kubectl set image deployments/jenkins jenkins=jenkins:2.411-py3 -n jenkins-ns
 ```
@@ -263,7 +265,7 @@ deployment.apps/jenkins image updated
 ```
 
 ## Rollout
-Incase it doesn't work, you can rollout. Check the history and rollout to the version before the last:
+In case it doesn't work, you can go back to the old image. Check the history and rollout to the version before the last:
 ```sh
 kubectl rollout history deployment/jenkins  -n jenkins-ns
 ```

@@ -106,12 +106,21 @@ Below is the command to add a domain name using the command line on Ubuntu 22.04
 sudo hostnamectl hostname k8smaster1.example.com
 ```
 
+Don't forget to change the `/etc/hosts` file. In this example, you would change the second line from `k8s-template.example.com` to `k8smaster1.example.com`:
+```
+$ cat /etc/hosts
+127.0.0.1 localhost
+127.0.1.1 k8s-template.example.com
+```
+
 Verify the change the has been apply:
 ```sh
 sudo hostnamectl status
 hostname -f
 hostname -d
 ```
+
+>Start a new terminal
 
 ### Installing latest Linux kernel 6.3.x on Ubuntu (Optional)
 I wanted to have the latest stable Linux kernel which was 6.3.3 at the time of this writing.

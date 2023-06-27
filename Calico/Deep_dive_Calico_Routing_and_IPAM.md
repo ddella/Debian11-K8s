@@ -80,10 +80,10 @@ Checking IPAM for inconsistencies...
 
 Loading all IPAM blocks...
 Found 4 IPAM blocks.
- IPAM block 10.255.108.128/26 affinity=host:s700sml4051:
- IPAM block 10.255.129.128/26 affinity=host:s700sml4153:
- IPAM block 10.255.140.64/26 affinity=host:s700sml4151:
- IPAM block 10.255.96.64/26 affinity=host:s700sml4152:
+ IPAM block 10.255.108.128/26 affinity=host:s666dan4051:
+ IPAM block 10.255.129.128/26 affinity=host:s666dan4153:
+ IPAM block 10.255.140.64/26 affinity=host:s666dan4151:
+ IPAM block 10.255.96.64/26 affinity=host:s666dan4152:
 IPAM blocks record 20 allocations.
 
 Loading all IPAM pools...
@@ -99,10 +99,10 @@ Workloads and nodes are using 20 IPs.
 
 Loading all handles
 Looking for top (up to 20) nodes by allocations...
-  s700sml4152 has 7 allocations
-  s700sml4153 has 5 allocations
-  s700sml4151 has 5 allocations
-  s700sml4051 has 3 allocations
+  s666dan4152 has 7 allocations
+  s666dan4153 has 5 allocations
+  s666dan4151 has 5 allocations
+  s666dan4051 has 3 allocations
 Node with most allocations has 7; median is 5
 
 Scanning for IPs that are allocated but not actually in use...
@@ -124,10 +124,10 @@ kubectl get blockaffinities -o go-template='{{- range .items -}}{{- if eq .spec.
 ```
 
 ```
-Node:s700sml4051	CIDR:10.255.108.128/26
-Node:s700sml4151	CIDR:10.255.140.64/26
-Node:s700sml4152	CIDR:10.255.96.64/26
-Node:s700sml4153	CIDR:10.255.129.128/26
+Node:s666dan4051	CIDR:10.255.108.128/26
+Node:s666dan4151	CIDR:10.255.140.64/26
+Node:s666dan4152	CIDR:10.255.96.64/26
+Node:s666dan4153	CIDR:10.255.129.128/26
 ```
 
 Look at the IP address of each Pods and check that they really were allocated from Calico's IPAM:
@@ -138,36 +138,36 @@ kubectl get pods -A -o=wide
 Output:
 ```
 NAMESPACE          NAME                                       READY   STATUS    RESTARTS        AGE    IP               NODE          NOMINATED NODE   READINESS GATES
-calico-apiserver   calico-apiserver-5d77dc756c-jdtkc          1/1     Running   2 (3d8h ago)    18d    10.255.140.122   s700sml4151   <none>           <none>
-calico-apiserver   calico-apiserver-5d77dc756c-spklp          1/1     Running   1 (3d8h ago)    18d    10.255.129.157   s700sml4153   <none>           <none>
-calico-system      calico-kube-controllers-656675bd4f-t6lcr   1/1     Running   1 (18d ago)     18d    10.255.108.129   s700sml4051   <none>           <none>
-calico-system      calico-node-2k2b9                          1/1     Running   0               60m    10.250.12.185    s700sml4151   <none>           <none>
-calico-system      calico-node-5v9kg                          1/1     Running   0               61m    10.250.12.180    s700sml4051   <none>           <none>
-calico-system      calico-node-hjrjz                          1/1     Running   0               60m    10.250.12.186    s700sml4152   <none>           <none>
-calico-system      calico-node-l29gc                          1/1     Running   0               61m    10.250.12.187    s700sml4153   <none>           <none>
-calico-system      calico-typha-5d9685f8d6-552l4              1/1     Running   6 (3d8h ago)    18d    10.250.12.186    s700sml4152   <none>           <none>
-calico-system      calico-typha-5d9685f8d6-f4nmk              1/1     Running   11 (3d8h ago)   18d    10.250.12.187    s700sml4153   <none>           <none>
-calico-system      csi-node-driver-6nb9l                      2/2     Running   6 (3d8h ago)    18d    10.255.96.97     s700sml4152   <none>           <none>
-calico-system      csi-node-driver-89t5b                      2/2     Running   6 (3d8h ago)    18d    10.255.129.161   s700sml4153   <none>           <none>
-calico-system      csi-node-driver-cwnbq                      2/2     Running   4 (3d8h ago)    18d    10.255.140.125   s700sml4151   <none>           <none>
-calico-system      csi-node-driver-zs8q7                      2/2     Running   2 (18d ago)     18d    10.255.108.130   s700sml4051   <none>           <none>
-default            hello-v1-7cd64d6955-6p5zx                  2/2     Running   6 (3d8h ago)    18d    10.255.96.95     s700sml4152   <none>           <none>
-default            hello-v1-7cd64d6955-rlc8g                  2/2     Running   6 (3d8h ago)    18d    10.255.96.96     s700sml4152   <none>           <none>
-default            hello-v1-7cd64d6955-svb7r                  2/2     Running   4 (3d8h ago)    18d    10.255.140.124   s700sml4151   <none>           <none>
-jenkins-ns         jenkins-f6f95f6f6-pstt4                    1/1     Running   0               3d5h   10.255.129.169   s700sml4153   <none>           <none>
-kube-system        coredns-5d78c9869d-4dtcm                   1/1     Running   5 (3d8h ago)    36d    10.255.96.93     s700sml4152   <none>           <none>
-kube-system        coredns-5d78c9869d-flsd8                   1/1     Running   5 (3d8h ago)    36d    10.255.96.94     s700sml4152   <none>           <none>
-kube-system        etcd-s700sml4051                           1/1     Running   231 (18d ago)   36d    10.250.12.180    s700sml4051   <none>           <none>
-kube-system        kube-apiserver-s700sml4051                 1/1     Running   213 (18d ago)   36d    10.250.12.180    s700sml4051   <none>           <none>
-kube-system        kube-controller-manager-s700sml4051        1/1     Running   222 (18d ago)   36d    10.250.12.180    s700sml4051   <none>           <none>
-kube-system        kube-proxy-7rqv9                           1/1     Running   5 (3d8h ago)    36d    10.250.12.186    s700sml4152   <none>           <none>
-kube-system        kube-proxy-gm7g6                           1/1     Running   4 (3d8h ago)    36d    10.250.12.185    s700sml4151   <none>           <none>
-kube-system        kube-proxy-sqtpd                           1/1     Running   3 (18d ago)     36d    10.250.12.180    s700sml4051   <none>           <none>
-kube-system        kube-proxy-vgbqb                           1/1     Running   6 (3d8h ago)    36d    10.250.12.187    s700sml4153   <none>           <none>
-kube-system        kube-scheduler-s700sml4051                 1/1     Running   238 (18d ago)   36d    10.250.12.180    s700sml4051   <none>           <none>
-nginx-jenkins-ns   nginx-jenkins-dp-75684b8dbc-g75qr          1/1     Running   1 (3d8h ago)    9d     10.255.140.126   s700sml4151   <none>           <none>
-nginx-jenkins-ns   nginx-jenkins-dp-75684b8dbc-jc8lr          1/1     Running   2 (3d8h ago)    9d     10.255.96.98     s700sml4152   <none>           <none>
-nginx-jenkins-ns   nginx-jenkins-dp-75684b8dbc-zs584          1/1     Running   5 (3d8h ago)    9d     10.255.129.162   s700sml4153   <none>           <none>
-tigera-operator    tigera-operator-58f95869d6-8nghh           1/1     Running   6 (3d8h ago)    18d    10.250.12.187    s700sml4153   <none>           <none>
+calico-apiserver   calico-apiserver-5d77dc756c-jdtkc          1/1     Running   2 (3d8h ago)    18d    10.255.140.122   s666dan4151   <none>           <none>
+calico-apiserver   calico-apiserver-5d77dc756c-spklp          1/1     Running   1 (3d8h ago)    18d    10.255.129.157   s666dan4153   <none>           <none>
+calico-system      calico-kube-controllers-656675bd4f-t6lcr   1/1     Running   1 (18d ago)     18d    10.255.108.129   s666dan4051   <none>           <none>
+calico-system      calico-node-2k2b9                          1/1     Running   0               60m    10.250.12.185    s666dan4151   <none>           <none>
+calico-system      calico-node-5v9kg                          1/1     Running   0               61m    10.250.12.180    s666dan4051   <none>           <none>
+calico-system      calico-node-hjrjz                          1/1     Running   0               60m    10.250.12.186    s666dan4152   <none>           <none>
+calico-system      calico-node-l29gc                          1/1     Running   0               61m    10.250.12.187    s666dan4153   <none>           <none>
+calico-system      calico-typha-5d9685f8d6-552l4              1/1     Running   6 (3d8h ago)    18d    10.250.12.186    s666dan4152   <none>           <none>
+calico-system      calico-typha-5d9685f8d6-f4nmk              1/1     Running   11 (3d8h ago)   18d    10.250.12.187    s666dan4153   <none>           <none>
+calico-system      csi-node-driver-6nb9l                      2/2     Running   6 (3d8h ago)    18d    10.255.96.97     s666dan4152   <none>           <none>
+calico-system      csi-node-driver-89t5b                      2/2     Running   6 (3d8h ago)    18d    10.255.129.161   s666dan4153   <none>           <none>
+calico-system      csi-node-driver-cwnbq                      2/2     Running   4 (3d8h ago)    18d    10.255.140.125   s666dan4151   <none>           <none>
+calico-system      csi-node-driver-zs8q7                      2/2     Running   2 (18d ago)     18d    10.255.108.130   s666dan4051   <none>           <none>
+default            hello-v1-7cd64d6955-6p5zx                  2/2     Running   6 (3d8h ago)    18d    10.255.96.95     s666dan4152   <none>           <none>
+default            hello-v1-7cd64d6955-rlc8g                  2/2     Running   6 (3d8h ago)    18d    10.255.96.96     s666dan4152   <none>           <none>
+default            hello-v1-7cd64d6955-svb7r                  2/2     Running   4 (3d8h ago)    18d    10.255.140.124   s666dan4151   <none>           <none>
+jenkins-ns         jenkins-f6f95f6f6-pstt4                    1/1     Running   0               3d5h   10.255.129.169   s666dan4153   <none>           <none>
+kube-system        coredns-5d78c9869d-4dtcm                   1/1     Running   5 (3d8h ago)    36d    10.255.96.93     s666dan4152   <none>           <none>
+kube-system        coredns-5d78c9869d-flsd8                   1/1     Running   5 (3d8h ago)    36d    10.255.96.94     s666dan4152   <none>           <none>
+kube-system        etcd-s666dan4051                           1/1     Running   231 (18d ago)   36d    10.250.12.180    s666dan4051   <none>           <none>
+kube-system        kube-apiserver-s666dan4051                 1/1     Running   213 (18d ago)   36d    10.250.12.180    s666dan4051   <none>           <none>
+kube-system        kube-controller-manager-s666dan4051        1/1     Running   222 (18d ago)   36d    10.250.12.180    s666dan4051   <none>           <none>
+kube-system        kube-proxy-7rqv9                           1/1     Running   5 (3d8h ago)    36d    10.250.12.186    s666dan4152   <none>           <none>
+kube-system        kube-proxy-gm7g6                           1/1     Running   4 (3d8h ago)    36d    10.250.12.185    s666dan4151   <none>           <none>
+kube-system        kube-proxy-sqtpd                           1/1     Running   3 (18d ago)     36d    10.250.12.180    s666dan4051   <none>           <none>
+kube-system        kube-proxy-vgbqb                           1/1     Running   6 (3d8h ago)    36d    10.250.12.187    s666dan4153   <none>           <none>
+kube-system        kube-scheduler-s666dan4051                 1/1     Running   238 (18d ago)   36d    10.250.12.180    s666dan4051   <none>           <none>
+nginx-jenkins-ns   nginx-jenkins-dp-75684b8dbc-g75qr          1/1     Running   1 (3d8h ago)    9d     10.255.140.126   s666dan4151   <none>           <none>
+nginx-jenkins-ns   nginx-jenkins-dp-75684b8dbc-jc8lr          1/1     Running   2 (3d8h ago)    9d     10.255.96.98     s666dan4152   <none>           <none>
+nginx-jenkins-ns   nginx-jenkins-dp-75684b8dbc-zs584          1/1     Running   5 (3d8h ago)    9d     10.255.129.162   s666dan4153   <none>           <none>
+tigera-operator    tigera-operator-58f95869d6-8nghh           1/1     Running   6 (3d8h ago)    18d    10.250.12.187    s666dan4153   <none>           <none>
 ```
 

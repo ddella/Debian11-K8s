@@ -119,7 +119,7 @@ Didn't seemed right for the `control-plane`. The source should have been `10.250
 [...]
 router id 10.4.0.1;
 [...]
-# For peer /bgp/v1/host/s700sml4051/ip_addr_v4
+# For peer /bgp/v1/host/s666dan4051/ip_addr_v4
 # Skipping ourselves (10.4.0.1)
 [...]
 ```
@@ -150,15 +150,15 @@ sudo -E calicoctl get node
 Output:
 ```
 NAME          
-s700sml4051   
-s700sml4151   
-s700sml4152   
-s700sml4153   
+s666dan4051   
+s666dan4151   
+s666dan4152   
+s666dan4153   
 ```
 
 Check the control plane node for the BGP IP address:
 ```sh
-sudo -E calicoctl get node s700sml4051 -o yaml
+sudo -E calicoctl get node s666dan4051 -o yaml
 ```
 
 In the output below, we see that the address `10.4.0.1/24` is wrong:
@@ -228,7 +228,7 @@ No IPv6 peers found.
 
 Check the control plane node for the BGP IP address:
 ```sh
-sudo -E calicoctl get node s700sml4051 -o yaml
+sudo -E calicoctl get node s666dan4051 -o yaml
 ```
 
 In the output below, we see that the address `10.4.0.1/24` has been replaced by the real interface IP:

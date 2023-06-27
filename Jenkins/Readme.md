@@ -66,7 +66,7 @@ kubectl get pods -n jenkins-ns -o=wide
 The output should look like this:
 ```
 NAME                       READY   STATUS    RESTARTS   AGE   IP          NODE          NOMINATED NODE   READINESS GATES
-jenkins-6d88f67656-fdr62   1/1     Running   0          21m   10.0.2.81   s700sml4151   <none>           <none>
+jenkins-6d88f67656-fdr62   1/1     Running   0          21m   10.0.2.81   s666dan4151   <none>           <none>
 ```
 
 With the name of the Pods, check it's status and look at the logs for any kind of errors:

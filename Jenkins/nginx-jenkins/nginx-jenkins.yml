@@ -60,7 +60,7 @@ spec:
     storage: 500Mi
   nfs:
     path: /mnt/nginx-jenkins/html
-    server: s700tmp1005.corp.bdc.test
+    server: ubuntu.example.com
 ---
 # Create PersistentVolume Claim for 'Site Content'
 apiVersion: v1
@@ -90,7 +90,7 @@ spec:
     storage: 100Mi
   nfs:
     path: /mnt/nginx-jenkins/conf
-    server: s700tmp1005.corp.bdc.test
+    server: ubuntu.example.com
 ---
 # Create PersistentVolume Claim for 'Conf'
 apiVersion: v1

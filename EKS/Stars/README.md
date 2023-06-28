@@ -249,12 +249,41 @@ kubectl delete -f 01-management-ui.yaml
 kubectl delete -f 00-namespace.yaml
 ```
 
+The output should look like this. Be patient, it can take 3-5 minutes:
+```
+namespace "client" deleted
+replicationcontroller "client" deleted
+service "client" deleted
+service "frontend" deleted
+replicationcontroller "frontend" deleted
+service "backend" deleted
+replicationcontroller "backend" deleted
+namespace "management-ui" deleted
+service "management-ui" deleted
+replicationcontroller "management-ui" deleted
+namespace "stars" deleted
+```
+
 Delete the load balancer, especially if you did this tutorial on a cloud provider:
 ```sh
 kubectl delete -f management-ui-lb.yaml
 ```
 
+Check that there's no more K8s Network Policy. They should be gone since they are `namespaced` and we deleted the namespaces:
+```sh
+kubectl get NetworkPolicy --all-namespaces -o wide
+```
 
+Normal output since the load balancer is namespaced, but make sure it's deleted in case of a cloud provider.
+```
+Error from server (NotFound): error when deleting "management-ui-lb.yaml": services "management-ui" not found
+```
+
+The output should look like this:
+```
+NAMESPACE          NAME              POD-SELECTOR     AGE
+calico-apiserver   allow-apiserver   apiserver=true   25d
+```
 
 # Reference
 [AWS](https://docs.aws.amazon.com/eks/latest/userguide/calico.html)  

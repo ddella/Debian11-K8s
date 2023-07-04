@@ -41,7 +41,7 @@ calico-apiserver   allow-apiserver   apiserver=true   25d
 ```
 
 ## Start the Stars policy demo
-Start by download all the manifests. You could pass the url directly to `kubectl`.
+Start by download all the manifests. You could have passed the url directly to `kubectl` but I wanted to keep a copy for cleanup at the end.
 
 ```sh
 curl -LO https://docs.projectcalico.org/v3.5/getting-started/kubernetes/tutorials/stars-policy/manifests/00-namespace.yaml
@@ -143,7 +143,7 @@ curl -LO https://docs.projectcalico.org/v3.5/getting-started/kubernetes/tutorial
 ```
 
 ## No Policy
-Open a browser on your local system and point it to `http://k8sworker1:30002/`. You should see the management user interface. The `C` node is the client service, the `F` node is the front-end service, and the `B` node is the back-end service. Each node has full communication access to all other nodes, as indicated by the bold, colored lines. By default every Pods can talk to every other Pods even in different namespace.
+Open a browser on your local system and point it to `http://k8sworker1:30002/` or any valid nodes in your cluster. You should see the management user interface. The `C` node is the client service, the `F` node is the front-end service, and the `B` node is the back-end service. Each node has full communication access to all other nodes, as indicated by the bold, colored lines. By default every Pods can talk to every other Pods even in different namespace.
 
 The color of the line (edges) that is the same as the node (vertices) represents the `egress traffic` from that node. If a line goes to a node with a different color, it represents `ingress traffic`.
 

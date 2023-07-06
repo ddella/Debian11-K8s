@@ -1,193 +1,40 @@
-# Create a namespace
 apiVersion: v1
 kind: Namespace
 metadata:
   name: echo-server
 ---
-# Create a headless service
-apiVersion: v1
-kind: Service
+apiVersion: apps/v1
+kind: DaemonSet
 metadata:
-  name: headless
+  name: echo-server
   namespace: echo-server
+  labels:
+    app: echo-server
+    k8s-app: echo-server
 spec:
   selector:
-    headless: echo
-  clusterIP: None
----
-# Create a Pod
-apiVersion: v1
-kind: Pod
-metadata:
-  name: echo-server1
-  namespace: echo-server
-  labels:
-    headless: echo
-    name: echo-server1
-    app: echo-server
-    color: red
-spec:
-  hostname: server1
-  subdomain: headless
-  containers:
-  - name: tcp-server1
-    image: alpine
-    command: ['/bin/sh']
-    args: ['-c', 'apk add socat; socat TCP-LISTEN:1234,reuseaddr,fork SYSTEM:"echo \$\(date\); echo Server\: \$SOCAT_SOCKADDR\:\$SOCAT_SOCKPORT; echo Client\: \$SOCAT_PEERADDR\:\$SOCAT_PEERPORT; echo; cat",nofork']
-  - name: udp-server1
-    image: alpine
-    command: ['/bin/sh']
-    args: ['-c', 'apk add socat; socat UDP-LISTEN:5678,reuseaddr,fork SYSTEM:"echo \$\(date\); echo Server\: \$SOCAT_SOCKADDR\:\$SOCAT_SOCKPORT; echo Client\: \$SOCAT_PEERADDR\:\$SOCAT_PEERPORT; echo; cat",nofork']
-  restartPolicy: Never
----
-# Create a Pod
-apiVersion: v1
-kind: Pod
-metadata:
-  name: echo-server2
-  namespace: echo-server
-  labels:
-    headless: echo
-    name: echo-server2
-    app: echo-server
-    color: green
-spec:
-  hostname: server2
-  subdomain: headless
-  containers:
-  - name: tcp-server2
-    image: alpine
-    command: ['/bin/sh']
-    args: ['-c', 'apk add socat; socat TCP-LISTEN:1234,reuseaddr,fork SYSTEM:"echo \$\(date\); echo Server\: \$SOCAT_SOCKADDR\:\$SOCAT_SOCKPORT; echo Client\: \$SOCAT_PEERADDR\:\$SOCAT_PEERPORT; echo; cat",nofork']
-  - name: udp-server2
-    image: alpine
-    command: ['/bin/sh']
-    args: ['-c', 'apk add socat; socat UDP-LISTEN:5678,reuseaddr,fork SYSTEM:"echo \$\(date\); echo Server\: \$SOCAT_SOCKADDR\:\$SOCAT_SOCKPORT; echo Client\: \$SOCAT_PEERADDR\:\$SOCAT_PEERPORT; echo; cat",nofork']
-  restartPolicy: Never
----
-# Create a Pod
-apiVersion: v1
-kind: Pod
-metadata:
-  name: echo-server3
-  namespace: echo-server
-  labels:
-    headless: echo
-    name: echo-server3
-    app: echo-server
-    color: blue
-spec:
-  hostname: server3
-  subdomain: headless
-  containers:
-  - name: tcp-server3
-    image: alpine
-    command: ['/bin/sh']
-    args: ['-c', 'apk add socat; socat TCP-LISTEN:1234,reuseaddr,fork SYSTEM:"echo \$\(date\); echo Server\: \$SOCAT_SOCKADDR\:\$SOCAT_SOCKPORT; echo Client\: \$SOCAT_PEERADDR\:\$SOCAT_PEERPORT; echo; cat",nofork']
-  - name: udp-server3
-    image: alpine
-    command: ['/bin/sh']
-    args: ['-c', 'apk add socat; socat UDP-LISTEN:5678,reuseaddr,fork SYSTEM:"echo \$\(date\); echo Server\: \$SOCAT_SOCKADDR\:\$SOCAT_SOCKPORT; echo Client\: \$SOCAT_PEERADDR\:\$SOCAT_PEERPORT; echo; cat",nofork']
-  restartPolicy: Never
----
-# Create a Pod
-apiVersion: v1
-kind: Pod
-metadata:
-  name: echo-client1
-  namespace: echo-server
-  labels:
-    # headless: echo
-    name: echo-client1
-    app: echo-client
-    color: black
-spec:
-  hostname: client1
-  subdomain: headless
-  containers:
-  - name: echo-client1
-    image: alpine
-    command: ['/bin/sh']
-    args: ['-c', 'tail -f /dev/null']
-  restartPolicy: Never
----
-# Create a NodePort service
-apiVersion: v1
-kind: Service
-metadata:
-  name: echo-np-tcp
-  namespace: echo-server
-  labels:
-    app: echo-np-tcp
-    service: NodePort
-spec:
-  type: NodePort
-  externalTrafficPolicy: Local
-  ports:
-  - port: 1234
-    nodePort: 31234
-    protocol: TCP
-    name: echo
-  selector:
-    app: echo-server
----
-# Create a LoadBalancer service
-apiVersion: v1
-kind: Service
-metadata:
-  name: echo-lb-tcp
-  namespace: echo-server
-  labels:
-    app: echo-lb-tcp
-    service: LoadBalancer
-spec:
-  type: LoadBalancer
-  externalTrafficPolicy: Local
-  ports:
-  - port: 1234
-    targetPort: 1234
-    protocol: TCP
-    name: echo
-  externalIPs:
-  - 2.2.2.2 # (any IP you choose)
-  selector:
-    app: echo-server
----
-# Create a ClusterIP service
-apiVersion: v1
-kind: Service
-metadata:
-  name: echo-ci-tcp
-  namespace: echo-server
-  labels:
-    app: echo-ci-tcp
-    service: ClusterIP
-spec:
-  type: ClusterIP
-  # externalTrafficPolicy: Local
-  ports:
-  - port: 1234
-    targetPort: 1234
-    protocol: TCP
-    name: echo
-  selector:
-    app: echo-server
----
-# Create a NodePort service (for UDP)
-apiVersion: v1
-kind: Service
-metadata:
-  name: echo-server-udp
-  namespace: echo-server
-  labels:
-    app: echo-server-udp
-spec:
-  type: NodePort
-  ports:
-  - port: 5678
-    nodePort: 31678
-    name: echo
-    protocol: UDP
-  selector:
-    app: echo-server
----
+    matchLabels:
+      name: echo-server
+  template:
+    metadata:
+      labels:
+        name: echo-server
+    spec:
+      containers:
+      - name: echo-server
+        image: php82_nginx125:3.18.2
+        env:
+        - name: TCP_PORT
+          value: "1234"
+        - name: UDP_PORT
+          value: "5678"
+        - name: TZ
+          value: "EAST+5EDT,M3.2.0/2,M11.1.0/2"
+        - name: TIMEZONE
+          value: "America/New_York"
+        resources:
+          limits:
+            memory: 100Mi
+          requests:
+            cpu: 100m
+            memory: 100Mi

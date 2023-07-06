@@ -6,7 +6,9 @@ This tutorial is about **Per-namespace IP pools**: Sometimes it is useful to def
 ## Verify that you are using Calico IPAM
 If you are not sure which IPAM your cluster is using, the way to tell depends on install method. If you followed Calico's recommendation, use the commandL
 ```sh
-kubectl get installation default -o go-template --template '{{.spec.cni.ipam.type}}{{"\n"}}'
+kubectl get installation default -o go-template --template 'CNI:     {{.spec.cni.type}}{{"\n"}}'
+kubectl get installation default -o go-template --template 'IPAM:    {{.spec.cni.ipam.type}}{{"\n"}}'
+kubectl get installation default -o go-template --template 'Version: {{.status.calicoVersion}}{{"\n"}}'
 ```
 
 Output should be `Calico`, if not STOP:
@@ -92,7 +94,7 @@ spec:
   selector:
     matchLabels:
       app: nginx-external
-  replicas: 3
+  replicas: 9
   template:
     metadata:
       labels:
@@ -113,7 +115,7 @@ spec:
   selector:
     matchLabels:
       app: nginx-internal
-  replicas: 3
+  replicas: 9
   template:
     metadata:
       labels:

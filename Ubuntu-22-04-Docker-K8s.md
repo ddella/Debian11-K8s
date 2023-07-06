@@ -140,6 +140,7 @@ wget https://raw.githubusercontent.com/pimlie/ubuntu-mainline-kernel.sh/master/u
 Make the file executable and copy it to `/usr/local/bin/`:
 ```sh
 chmod +x ubuntu-mainline-kernel.sh
+sudo chown -R root:adm /usr/local/bin/ubuntu-mainline-kernel.sh
 sudo mv ubuntu-mainline-kernel.sh /usr/local/bin/
 ```
 
@@ -525,7 +526,7 @@ The output should look like this:
     RuntimeVersion:  1.6.21
     RuntimeApiVersion:  v1
 
-### Install `nerdctl` (DOESN'T WORK !!!)
+### Install `nerdctl`
 ContaiNERD CTL is a command-line tool for managing containers for the `containerd` Container Runtime. It's compatible with Docker CLI for Docker and has the same UI/UX as the "docker" command. 
 
 Get the latest version and download `nerdctl` binary file. Extract it to `/usr/local/bin`:
@@ -545,16 +546,16 @@ curl -LO https://github.com/containerd/nerdctl/releases/download/v${VER}/nerdctl
 ```sh
 # mkdir nerdctl-${VER}-linux-amd64
 sudo tar Cxzvf /usr/local/bin nerdctl-${VER}-linux-amd64.tar.gz
+sudo chown root:adm /usr/local/bin/nerdctl
 ```
-
+Don't do the next step - DIDN'T WORK FOR ME !!!
 ```sh
 echo "kernel.unprivileged_userns_clone = 1" | sudo tee /etc/sysctl.d/90-nerdctl-rootless.conf > /dev/null
 sudo sysctl --system
 sudo sysctl -p /etc/sysctl.d/90-nerdctl-rootless.conf
+containerd-rootless-setuptool.sh install
 ```
 
-containerd-rootless-setuptool.sh install
- 
 4. Cleanup
 ```sh
 rm -f nerdctl-full-${VER}-linux-amd64.tar.gz

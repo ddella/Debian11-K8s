@@ -1,0 +1,18 @@
+# kubectl create -f nodeport.yaml
+# kubectl describe service/echo-server-service -n echo-server
+# kubectl delete -f nodeport.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: echo-server-service
+  namespace: echo-server
+spec:
+  type: NodePort
+  selector:
+    name: echo-server
+  ports:
+    - port: 80
+      nodePort: 30001
+      # targetPort: 8080
+      protocol: TCP
+      name: http

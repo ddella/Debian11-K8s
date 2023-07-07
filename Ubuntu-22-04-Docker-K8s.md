@@ -211,7 +211,10 @@ If you want to be able to SSH from your PC to the newly created VM, you need to 
 ssh-copy-id -i ~/.ssh/id_ecdsa.pub 192.168.13.3x
 ```
 
->**Note:** If you don't have an ECC public key, change the filename
+If you want to use `sudo` without password, enter that command (use wisely, that can be dangerous 😉):
+```sh
+echo "${USER} ALL=(ALL:ALL) NOPASSWD: ALL" | sudo tee /etc/sudoers.d/${USER} > /dev/null
+```
 
 ### Disable swap space
 K8s requires that swap partition be **disabled** on master and worker node of a cluster. As of this writing, Ubuntu 22.04 with minimal install has swap space disabled by default. If the case of Ubuntu 22.04, swap is disabled. You can skip to the next section if this is the case.

@@ -85,13 +85,13 @@ docker save ${DOCKER_IMAGE}:${DOCKER_TAG} -o ${DOCKER_IMAGE}.tar
 
 for NODE in "${K8S_NODES[@]}"
 do
-  echo "scp file ${DOCKER_IMAGE}.tar on node $NODE.$DNS_SUFFIX"
+  echo ">> scp file ${DOCKER_IMAGE}.tar on node $NODE.$DNS_SUFFIX"
   scp ${DOCKER_IMAGE}.tar $USER@$NODE.$DNS_SUFFIX:/tmp/.
 
-  echo "Import image /${DOCKER_IMAGE}.tar in K8s local repo on node $NODE.$DNS_SUFFIX"
+  echo ">> Import image ${DOCKER_IMAGE}.tar in local K8s repo on node $NODE.$DNS_SUFFIX"
   ssh $NODE "sudo nerdctl --namespace=k8s.io load -i /tmp/${DOCKER_IMAGE}.tar && \
   rm -f ${DOCKER_IMAGE}.tar"
 
-  echo "Done for node $NODE.$DNS_SUFFIX ..."
+  echo ">> Done for node $NODE.$DNS_SUFFIX ..."
   echo ""
 ```

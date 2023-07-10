@@ -123,7 +123,7 @@ Output:
 The final step is restarting the API server to pick up the new certificate. I just delete the API server Pod. K8s will create a new one for me. Isn't that the beauty of Kubernetes 😀
 ```sh
 kubectl delete $(kubectl get pods -n kube-system -l component=kube-apiserver -o name) -n kube-system
-pod "kube-apiserver-s700sml4051" deleted
+pod "kube-apiserver-s666dan4051" deleted
 ```
 
 ## Verifying the Change
